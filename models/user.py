@@ -25,8 +25,8 @@ class BalanceHistory(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     change = Column(Integer)
-    type = Column(String)  # пополнение, штраф, корректировка, вывод
-    comment = Column(String)
+    type = Column(String(255))  # пополнение, штраф, корректировка, вывод
+    comment = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
     user = relationship("User", backref="balance_history")
 
@@ -35,6 +35,6 @@ class AdminActionLog(Base):
     id = Column(Integer, primary_key=True)
     admin_id = Column(Integer, nullable=False)
     user_id = Column(Integer, nullable=False)
-    action = Column(String)  # block, unblock, block_1d, etc
+    action = Column(String(255))  # block, unblock, block_1d, etc
     comment = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow) 
