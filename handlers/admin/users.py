@@ -374,7 +374,10 @@ async def news_text(message: Message, state: FSMContext):
     )
     await state.set_state(NewsFSM.confirm)
 
-@router.callback_query(lambda c: c.data in ["news_confirm_yes", "news_confirm_no"], state=NewsFSM.confirm)
+@router.callback_query(
+    lambda c: c.data in ["news_confirm_yes", "news_confirm_no"],
+    StateFilter(NewsFSM.confirm)
+)
 async def process_news_confirm(callback_query: CallbackQuery, state: FSMContext):
     if callback_query.data == "news_confirm_yes":
         data = await state.get_data()
