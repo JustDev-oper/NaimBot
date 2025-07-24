@@ -15,7 +15,22 @@ router = Router()
 @router.callback_query(F.data == "users")
 async def open_users(call: CallbackQuery):
     await call.answer()
-    await show_users(call.message)
+    async with async_session() as session:
+        result = await session.execute(select(User))
+        users = result.scalars().all()
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=f"{u.fio or u.tg_id}", callback_data=f"user_{u.tg_id}")] for u in users
+        ] + [[InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]])
+        if not users:
+            try:
+                await call.message.edit_text("Пользователей нет.", reply_markup=kb)
+            except Exception:
+                await call.message.answer("Пользователей нет.", reply_markup=kb)
+            return
+        try:
+            await call.message.edit_text("Список пользователей:", reply_markup=kb)
+        except Exception:
+            await call.message.answer("Список пользователей:", reply_markup=kb)
 
 @router.message(F.text == "Список пользователей")
 async def show_users(message: Message):
@@ -360,7 +375,10 @@ async def news_confirm(message: Message, state: FSMContext):
 @router.callback_query(F.data == "admin_menu")
 async def admin_menu_cb(call: CallbackQuery):
     from keyboards.admin import admin_main_menu
-    await call.message.answer("Админ-меню:", reply_markup=admin_main_menu())
+    try:
+        await call.message.edit_text("Админ-меню:", reply_markup=admin_main_menu())
+    except Exception:
+        await call.message.answer("Админ-меню:", reply_markup=admin_main_menu())
     await call.answer() 
 
 @router.callback_query(F.data == "withdraw_requests")
