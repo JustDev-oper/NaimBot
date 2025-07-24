@@ -7,6 +7,12 @@ class Settings(BaseSettings):
     WORKERS_CHAT_ID: Optional[int] = None
     WORKERS_CHAT_LINK: Optional[str] = None
 
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 3306
+    DB_USER: str = "root"
+    DB_PASS: str = "password"
+    DB_NAME: str = "naimbot"
+
     class Config:
         env_file = ".env"
 
