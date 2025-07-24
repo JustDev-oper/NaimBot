@@ -49,7 +49,14 @@ async def user_info(call: CallbackQuery):
              [InlineKeyboardButton(text="🔓 Разблокировать", callback_data=f"unblock_{user.tg_id}")],
             [InlineKeyboardButton(text="Назад", callback_data="users")]
         ])
-        await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+        if user.passport_photo:
+            try:
+                await call.message.delete()
+            except Exception:
+                pass
+            await call.message.answer_photo(user.passport_photo, caption=text, reply_markup=kb, parse_mode="HTML")
+        else:
+            await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
         await call.answer()
 
 @router.callback_query(F.data.startswith("block_forever_"))

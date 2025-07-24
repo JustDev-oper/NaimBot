@@ -14,8 +14,6 @@ class User(Base):
     is_approved = Column(Boolean, default=False)
     is_blocked = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
-    referrer_id = Column(Integer)
-    referrer = relationship("User", remote_side=[id])
     balance = Column(Integer, default=0)
     is_subscribed = Column(Boolean, default=True)
     comment = Column(String(255))
