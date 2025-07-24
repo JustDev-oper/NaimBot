@@ -478,16 +478,10 @@ async def admin_bulk(call: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     selected = data.get("bulk_selected", [])
     buttons = []
-    row = []
-    for i, u in enumerate(users):
+    for u in users:
         checked = " ✅" if u.tg_id in selected else ""
-        row.append(InlineKeyboardButton(text=f"🙍‍♂️ {u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}"))
-        if (i+1) % 3 == 0:
-            buttons.append(row)
-            row = []
-    if row:
-        buttons.append(row)
-    buttons.append([InlineKeyboardButton(text="✅ Продолжить", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
+        buttons.append([InlineKeyboardButton(text=f"{u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}")])
+    buttons.append([InlineKeyboardButton(text="Далее", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
     await state.update_data(bulk_selected=selected)
     try:
         await call.message.edit_text("<b>👥 Выберите пользователей для массового действия:</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
@@ -509,16 +503,10 @@ async def bulk_select(call: CallbackQuery, state: FSMContext):
         result = await session.execute(select(User))
         users = result.scalars().all()
     buttons = []
-    row = []
-    for i, u in enumerate(users):
+    for u in users:
         checked = " ✅" if u.tg_id in selected else ""
-        row.append(InlineKeyboardButton(text=f"🙍‍♂️ {u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}"))
-        if (i+1) % 3 == 0:
-            buttons.append(row)
-            row = []
-    if row:
-        buttons.append(row)
-    buttons.append([InlineKeyboardButton(text="✅ Продолжить", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
+        buttons.append([InlineKeyboardButton(text=f"{u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}")])
+    buttons.append([InlineKeyboardButton(text="Далее", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
     try:
         await call.message.edit_text("<b>👥 Выберите пользователей для массового действия:</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
     except Exception:

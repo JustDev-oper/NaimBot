@@ -21,5 +21,5 @@ def user_profile_keyboard():
         [InlineKeyboardButton(text="💸 Вывести средства", callback_data="withdraw")],
         [InlineKeyboardButton(text="📊 История баланса", callback_data="balance_history")],
         [InlineKeyboardButton(text="💸 Мои заявки на вывод", callback_data="my_withdraw_requests")],
-        [InlineKeyboardButton(text="Назад", callback_data="main_menu")]
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="close_notify")]
     ]) 
