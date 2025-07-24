@@ -7,18 +7,18 @@ from sqlalchemy import Text
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
-    tg_id = Column(Integer, unique=True, nullable=False)
-    fio = Column(String)
+    tg_id = Column(Integer, unique=True)
+    fio = Column(String(255))
     age = Column(Integer)
-    passport_photo = Column(String)
+    passport_photo = Column(String(255))
     is_approved = Column(Boolean, default=False)
     is_blocked = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
-    referrer_id = Column(Integer, ForeignKey("users.id"))
+    referrer_id = Column(Integer)
     referrer = relationship("User", remote_side=[id])
     balance = Column(Integer, default=0)
     is_subscribed = Column(Boolean, default=True)
-    comment = Column(String)
+    comment = Column(String(255))
 
 class BalanceHistory(Base):
     __tablename__ = "balance_history"
