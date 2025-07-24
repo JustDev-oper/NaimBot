@@ -514,7 +514,7 @@ async def bulk_select(call: CallbackQuery, state: FSMContext):
     for u in users:
         checked = " ✅" if u.tg_id in selected else ""
         buttons.append([InlineKeyboardButton(text=f"{u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}")])
-    buttons.append([InlineKeyboardButton(text="Далее", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
+    buttons.append([InlineKeyboardButton(text="▶️ Далее", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
     try:
         await call.message.edit_text("<b>👥 Выберите пользователей для массового действия:</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
     except Exception:

@@ -22,7 +22,7 @@ class WithdrawFSM(StatesGroup):
     confirm = State()
 
 @router.callback_query(F.data == "profile")
-async def show_profile_cb(call: CallbackQuery, state: FSMContext):
+async def back_to_profile(call: CallbackQuery, state: FSMContext):
     user = await get_or_create_user(call.from_user.id)
     from sqlalchemy import select
     from datetime import datetime, timedelta
@@ -54,12 +54,13 @@ async def show_profile_cb(call: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="💸 Вывести средства", callback_data="withdraw")],
         [InlineKeyboardButton(text="📊 История баланса", callback_data="balance_history")],
         [InlineKeyboardButton(text="💸 Мои заявки на вывод", callback_data="my_withdraw_requests")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")]
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
     ])
     try:
         await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
     except Exception:
         await call.message.answer(text, reply_markup=kb, parse_mode="HTML")
+    await state.clear()
     await call.answer()
 
 @router.callback_query(F.data == "withdraw")
@@ -79,25 +80,28 @@ async def withdraw_amount(message: Message, state: FSMContext):
     user = await get_or_create_user(message.from_user.id)
     if not message.text.isdigit() or int(message.text) <= 0:
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")]
         ])
         await message.edit_text("❗️ <b>Введите корректную сумму:</b>", reply_markup=kb, parse_mode="HTML")
         return
     amount = int(message.text)
     if amount < 100:
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")]
         ])
         await message.edit_text("❗️ <b>Минимальная сумма для вывода — 100 ₽</b>", reply_markup=kb, parse_mode="HTML")
         return
     if amount > user.balance:
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")]
         ])
         await message.edit_text("❗️ <b>Недостаточно средств на балансе!</b>", reply_markup=kb, parse_mode="HTML")
         return
     await state.update_data(amount=amount)
-    await message.edit_text("💳 <b>Введите реквизиты для вывода (номер карты, телефон и т.д.):</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]]), parse_mode="HTML")
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")]
+    ])
+    await message.edit_text("💳 <b>Введите реквизиты для вывода (номер карты, телефон и т.д.):</b>", reply_markup=kb, parse_mode="HTML")
     await state.set_state(WithdrawFSM.requisites)
 
 @router.message(WithdrawFSM.requisites)
@@ -105,7 +109,7 @@ async def withdraw_requisites(message: Message, state: FSMContext):
     await state.update_data(requisites=message.text)
     data = await state.get_data()
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")]
     ])
     await message.edit_text(f"<b>💸 Подтвердите заявку на вывод:</b>\nСумма: <b>{data['amount']}</b> ₽\nРеквизиты: <b>{data['requisites']}</b>\n\nОтправить заявку? (да/нет)", parse_mode="HTML", reply_markup=kb)
     await state.set_state(WithdrawFSM.confirm)
@@ -113,7 +117,10 @@ async def withdraw_requisites(message: Message, state: FSMContext):
 @router.message(WithdrawFSM.confirm)
 async def withdraw_confirm(message: Message, state: FSMContext):
     if message.text.lower() not in ["да", "yes", "+"]:
-        await message.edit_text("❌ <b>Заявка отменена.</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]]), parse_mode="HTML")
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")]
+        ])
+        await message.edit_text("❌ <b>Заявка отменена.</b>", reply_markup=kb, parse_mode="HTML")
         await state.clear()
         return
     data = await state.get_data()
@@ -124,10 +131,13 @@ async def withdraw_confirm(message: Message, state: FSMContext):
         session.add(hist)
         await session.merge(user)
         await session.commit()
-    await message.edit_text("✅ <b>Заявка на вывод отправлена!</b>\nПожалуйста, ожидайте подтверждения от администратора. 🕓", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]]))
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")]
+    ])
+    await message.edit_text("✅ <b>Заявка на вывод отправлена!</b>\nПожалуйста, ожидайте подтверждения от администратора. 🕓", parse_mode="HTML", reply_markup=kb)
     await state.clear()
     # Уведомление админов
-    kb = InlineKeyboardMarkup(inline_keyboard=[
+    kb_admin = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Одобрить", callback_data=f"approve_withdraw_{user.tg_id}_{data['amount']}")],
         [InlineKeyboardButton(text="❌ Отклонить", callback_data=f"reject_withdraw_{user.tg_id}_{data['amount']}")]
     ])
@@ -136,7 +146,7 @@ async def withdraw_confirm(message: Message, state: FSMContext):
             await message.bot.send_message(
                 admin_id,
                 f"<b>Новая заявка на вывод!</b>\nПользователь: <code>{user.fio or user.tg_id}</code>\nID: <code>{user.tg_id}</code>\nСумма: <b>{data['amount']} ₽</b>\nРеквизиты: <b>{data['requisites']}</b>",
-                reply_markup=kb,
+                reply_markup=kb_admin,
                 parse_mode="HTML"
             )
         except Exception:
@@ -151,7 +161,7 @@ async def show_balance_history(call: CallbackQuery):
         )
         history = result.fetchall()
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")]
     ])
     if not history:
         try:
@@ -184,7 +194,7 @@ async def show_my_withdraw_requests(call: CallbackQuery):
         )
         history = result.scalars().all()
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")]
     ])
     if not history:
         try:
