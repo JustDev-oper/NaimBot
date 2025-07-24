@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     DB_PASS: str = "password"
     DB_NAME: str = "naimbot"
 
+    BOT_USERNAME: Optional[str] = None  # username бота без @
+
     class Config:
         env_file = ".env"
 
