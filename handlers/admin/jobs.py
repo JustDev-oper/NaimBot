@@ -29,7 +29,7 @@ class JobCreate(StatesGroup):
     workers_needed = State()
     photo = State()
 
-cancel_kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="❌ Отмена")]], resize_keyboard=True)
+CANCEL_INLINE_KB = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_job_create")]])
 
 @router.callback_query(F.data == "create_job")
 async def open_create_job(call: CallbackQuery, state: FSMContext):
@@ -151,32 +151,37 @@ async def show_user_profile_from_job(call: CallbackQuery):
     await call.message.answer(text)
     await call.answer()
 
+@router.callback_query(F.data == "cancel_job_create")
+async def cancel_job_create_cb(call: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await call.message.edit_text("Создание задания отменено.", reply_markup=admin_main_menu())
+    await call.answer()
+
 @router.message(F.text == "Создать задание")
 async def start_job_create(message: Message, state: FSMContext):
-    await message.answer("Введите название задания:")
+    await message.answer("Введите название задания:", reply_markup=CANCEL_INLINE_KB)
     await state.set_state(JobCreate.title)
 
 @router.message(JobCreate.title)
 async def job_title(message: Message, state: FSMContext):
     await state.update_data(title=message.text)
-    await message.answer("Введите описание задания:")
+    await message.answer("Введите описание задания:", reply_markup=CANCEL_INLINE_KB)
     await state.set_state(JobCreate.description)
 
 @router.message(JobCreate.description)
 async def job_desc(message: Message, state: FSMContext):
     await state.update_data(description=message.text)
-    await message.answer("Введите оплату за смену (число):")
+    await message.answer("Введите оплату за смену (число):", reply_markup=CANCEL_INLINE_KB)
     await state.set_state(JobCreate.pay)
 
 @router.message(JobCreate.pay)
 async def job_pay(message: Message, state: FSMContext):
     await state.update_data(pay=int(message.text))
-    await message.answer("Введите <b>число, время начала и время конца</b> через пробел. Пример: <b>28 15:00 16:00</b>", parse_mode="HTML")
+    await message.answer("Введите <b>число, время начала и время конца</b> через пробел. Пример: <b>28 15:00 16:00</b>", parse_mode="HTML", reply_markup=CANCEL_INLINE_KB)
     await state.set_state(JobCreate.start_time)
 
 @router.message(JobCreate.start_time)
 async def job_start_time(message: Message, state: FSMContext):
-    # Ожидаем ввод: 28 15:00 16:00
     try:
         parts = message.text.strip().split()
         if len(parts) != 3:
@@ -191,18 +196,18 @@ async def job_start_time(message: Message, state: FSMContext):
         end_dt = datetime.strptime(f"{day}.{month}.{year} {end_time}", "%d.%m.%Y %H:%M")
         await state.update_data(start_time=start_dt.strftime('%Y-%m-%d %H:%M'))
         await state.update_data(end_time=end_dt.strftime('%Y-%m-%d %H:%M'))
-        await message.answer("Минимальный возраст?")
+        await message.answer("Минимальный возраст?", reply_markup=CANCEL_INLINE_KB)
         await state.set_state(JobCreate.min_age)
     except Exception:
-        await message.answer("Введите дату и время в формате: <b>28 15:00 16:00</b> (число, время начала, время конца)", parse_mode="HTML")
+        await message.answer("Введите дату и время в формате: <b>28 15:00 16:00</b> (число, время начала, время конца)", parse_mode="HTML", reply_markup=CANCEL_INLINE_KB)
 
 @router.message(JobCreate.min_age)
 async def job_min_age(message: Message, state: FSMContext):
     if not message.text.isdigit() or int(message.text) < 16:
-        await message.answer("Введите минимальный возраст числом (от 16):")
+        await message.answer("Введите минимальный возраст числом (от 16):", reply_markup=CANCEL_INLINE_KB)
         return
     await state.update_data(min_age=int(message.text))
-    await message.answer("Укажите максимальный возраст для задания (или '-' если не ограничено):")
+    await message.answer("Укажите максимальный возраст для задания (или '-' если не ограничено):", reply_markup=CANCEL_INLINE_KB)
     await state.set_state(JobCreate.max_age)
 
 @router.message(JobCreate.max_age)
@@ -210,23 +215,23 @@ async def job_max_age(message: Message, state: FSMContext):
     if message.text == '-' or message.text == "0":
         await state.update_data(max_age=99)
     elif not message.text.isdigit() or int(message.text) < 16:
-        await message.answer("Введите максимальный возраст числом (от 16) или '-' если не ограничено:")
+        await message.answer("Введите максимальный возраст числом (от 16) или '-' если не ограничено:", reply_markup=CANCEL_INLINE_KB)
         return
     else:
         await state.update_data(max_age=int(message.text))
-    await message.answer("Введите адрес задания:")
+    await message.answer("Введите адрес задания:", reply_markup=CANCEL_INLINE_KB)
     await state.set_state(JobCreate.address)
 
 @router.message(JobCreate.address)
 async def job_address(message: Message, state: FSMContext):
     await state.update_data(address=message.text)
-    await message.answer("Сколько нужно работников?")
+    await message.answer("Сколько нужно работников?", reply_markup=CANCEL_INLINE_KB)
     await state.set_state(JobCreate.workers_needed)
 
 @router.message(JobCreate.workers_needed)
 async def job_workers(message: Message, state: FSMContext):
     await state.update_data(workers_needed=int(message.text))
-    await message.answer("Пришлите фото (или напишите 'нет'):")
+    await message.answer("Пришлите фото (или напишите 'нет'):", reply_markup=CANCEL_INLINE_KB)
     await state.set_state(JobCreate.photo)
 
 @router.message(JobCreate.photo, F.photo)
@@ -239,7 +244,7 @@ async def job_no_photo(message: Message, state: FSMContext):
     if message.text.lower() == 'нет':
         await finish_job_create(message, state, None)
     else:
-        await message.answer("Пришлите фото или напишите 'нет'")
+        await message.answer("Пришлите фото или напишите 'нет'", reply_markup=CANCEL_INLINE_KB)
 
 async def finish_job_create(message: Message, state: FSMContext, photo_id):
     data = await state.get_data()
@@ -275,7 +280,7 @@ async def finish_job_create(message: Message, state: FSMContext, photo_id):
                 f"<b>Мест:</b> {total}")
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         # Кнопка-ссылка на бота с параметром job_id
-        bot_username = settings.BOT_USERNAME if hasattr(settings, 'BOT_USERNAME') else 'NaimBot'
+        bot_username = settings.BOT_USERNAME  # всегда без @
         deep_link = f"https://t.me/{bot_username}?start=job_{job.id}"
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="✋ Записаться", url=deep_link)]
@@ -352,9 +357,4 @@ async def delete_job(call: CallbackQuery):
         await call.message.edit_text("🗑 <b>Задание удалено!</b>", parse_mode="HTML", reply_markup=admin_main_menu())
     except Exception:
         await call.message.answer("🗑 <b>Задание удалено!</b>", parse_mode="HTML", reply_markup=admin_main_menu())
-    await call.answer()
-
-@router.message(StateFilter(JobCreate), F.text == "❌ Отмена")
-async def cancel_job_create(message: Message, state: FSMContext):
-    await state.clear()
-    await message.answer("Создание задания отменено.", reply_markup=admin_main_menu()) 
+    await call.answer() 

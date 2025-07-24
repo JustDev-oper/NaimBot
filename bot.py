@@ -16,6 +16,9 @@ from middlewares.access import AccessMiddleware
 
 async def main():
     bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
+    # Получаем username бота и сохраняем в settings
+    me = await bot.get_me()
+    settings.BOT_USERNAME = me.username  # без @
     dp = Dispatcher()
 
     @dp.errors()

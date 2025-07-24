@@ -9,6 +9,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from datetime import datetime, timedelta
 from utils.misc import log_admin_action
+from models.referral import Referral
+from keyboards.admin import admin_main_menu
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 router = Router()
 
@@ -381,6 +384,7 @@ async def admin_menu_cb(call: CallbackQuery):
         await call.message.answer("Админ-меню:", reply_markup=admin_main_menu())
     await call.answer() 
 
+# 2. Кнопка 'Назад' в заявках на вывод
 @router.callback_query(F.data == "withdraw_requests")
 async def show_withdraw_requests(call: CallbackQuery):
     from models.user import BalanceHistory, User
@@ -393,16 +397,19 @@ async def show_withdraw_requests(call: CallbackQuery):
             .order_by(desc(BalanceHistory.created_at))
         )
         rows = result.fetchall()
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]
+    ])
     if not rows:
-        await call.message.answer("<b>Заявок на вывод нет.</b> 🕓", parse_mode="HTML")
+        await call.message.answer("<b>Заявок на вывод нет.</b> 🕓", parse_mode="HTML", reply_markup=kb)
         await call.answer()
         return
     # Кнопки для каждой заявки
-    kb = InlineKeyboardMarkup(inline_keyboard=[
+    req_kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"{user.fio or user.tg_id} | {abs(hist.change)}₽ | {(hist.created_at + timedelta(hours=3)).strftime('%d.%m %H:%M')} (МСК)", callback_data=f"withdraw_info_{hist.id}")]
         for hist, user in rows
-    ])
-    await call.message.answer("<b>Заявки на вывод:</b>", reply_markup=kb, parse_mode="HTML")
+    ] + [[InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]])
+    await call.message.answer("<b>Заявки на вывод:</b>", reply_markup=req_kb, parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data.regexp(r"^withdraw_info_\d+"))
@@ -449,7 +456,7 @@ async def admin_bulk(call: CallbackQuery, state: FSMContext):
             row = []
     if row:
         buttons.append(row)
-    buttons.append([InlineKeyboardButton(text="✅ Продолжить", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")])
+    buttons.append([InlineKeyboardButton(text="✅ Продолжить", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
     await state.update_data(bulk_selected=selected)
     try:
         await call.message.edit_text("Выберите пользователей для массового действия:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
@@ -467,7 +474,26 @@ async def bulk_select(call: CallbackQuery, state: FSMContext):
     else:
         selected.append(tg_id)
     await state.update_data(bulk_selected=selected)
-    await call.answer(f"Выбрано: {len(selected)}")
+    # обновляем сообщение с клавиатурой
+    async with async_session() as session:
+        result = await session.execute(select(User))
+        users = result.scalars().all()
+    buttons = []
+    row = []
+    for i, u in enumerate(users):
+        checked = " ✅" if u.tg_id in selected else ""
+        row.append(InlineKeyboardButton(text=f"{u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}"))
+        if (i+1) % 3 == 0:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    buttons.append([InlineKeyboardButton(text="✅ Продолжить", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
+    try:
+        await call.message.edit_text("Выберите пользователей для массового действия:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    except Exception:
+        await call.message.answer("Выберите пользователей для массового действия:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    await call.answer()
 
 class BulkMailFSM(StatesGroup):
     text = State()
@@ -488,9 +514,18 @@ async def bulk_continue(call: CallbackQuery, state: FSMContext):
     await call.message.answer(f"Выбрано пользователей: {len(selected)}. Какое действие выполнить?", reply_markup=kb)
     await call.answer()
 
+# 1. Кнопка отмены для рассылки
+CANCEL_BULK_KB = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_bulk_mail")]])
+
+@router.callback_query(F.data == "cancel_bulk_mail")
+async def cancel_bulk_mail_cb(call: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await call.message.edit_text("Рассылка отменена.", reply_markup=admin_main_menu())
+    await call.answer()
+
 @router.callback_query(F.data == "bulk_mail")
 async def bulk_mail(call: CallbackQuery, state: FSMContext):
-    await call.message.answer("Введите текст рассылки:")
+    await call.message.answer("Введите текст рассылки:", reply_markup=CANCEL_BULK_KB)
     await state.set_state(BulkMailFSM.text)
     await call.answer()
 
