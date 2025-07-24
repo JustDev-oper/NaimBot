@@ -39,4 +39,13 @@ def back_to_admin_menu():
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]
-    ]) 
+    ])
+
+confirm_news_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Да", callback_data="news_confirm_yes"),
+            InlineKeyboardButton(text="❌ Нет", callback_data="news_confirm_no"),
+        ]
+    ]
+) 

@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from utils.misc import log_admin_action
 from keyboards.admin import admin_main_menu
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from keyboards.admin import confirm_news_keyboard
 
 router = Router()
 
@@ -340,9 +341,9 @@ async def admin_stats(call: CallbackQuery):
             ''.join([f"{i+1}. {u.fio or u.tg_id}: <b>{cnt}</b>\n" for i, (u, cnt) in enumerate(top_jobs)])
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]
     ])
-    await call.message.answer(text, reply_markup=kb, parse_mode="HTML")
+    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data == "close_notify")
@@ -366,37 +367,41 @@ async def start_news(call: CallbackQuery, state: FSMContext):
 @router.message(NewsFSM.text)
 async def news_text(message: Message, state: FSMContext):
     await state.update_data(text=message.text)
-    await message.edit_text(f"<b>📢 Текст рассылки:</b>\n{message.text}\n\nОтправить всем пользователям? (да/нет)", parse_mode="HTML")
+    await message.answer(
+        f"<b>📢 Текст рассылки:</b>\n{message.text}\n\nОтправить всем пользователям?",
+        parse_mode="HTML",
+        reply_markup=confirm_news_keyboard
+    )
     await state.set_state(NewsFSM.confirm)
 
-@router.message(NewsFSM.confirm)
-async def news_confirm(message: Message, state: FSMContext):
-    if message.text.lower() not in ["да", "yes", "+"]:
-        await message.edit_text("❌ <b>Рассылка отменена.</b>", parse_mode="HTML")
+@router.callback_query(lambda c: c.data in ["news_confirm_yes", "news_confirm_no"], state=NewsFSM.confirm)
+async def process_news_confirm(callback_query: CallbackQuery, state: FSMContext):
+    if callback_query.data == "news_confirm_yes":
+        data = await state.get_data()
+        from core.db import async_session
+        from models.user import User
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        async with async_session() as session:
+            result = await session.execute(User.__table__.select().where(User.is_blocked == False, User.is_approved == True))
+            users = result.fetchall()
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
+        ])
+        await callback_query.message.edit_text("⏳ <b>Рассылка отправляется...</b>", parse_mode="HTML")
+        count = 0
+        for row in users:
+            try:
+                await callback_query.bot.send_message(row.tg_id, data['text'], reply_markup=kb)
+                count += 1
+            except Exception:
+                pass
+        await callback_query.message.edit_text(f"✅ <b>Рассылка отправлена {count} пользователям.</b>", parse_mode="HTML")
         await state.clear()
-        return
-    data = await state.get_data()
-    from core.db import async_session
-    from models.user import User
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    async with async_session() as session:
-        result = await session.execute(User.__table__.select().where(User.is_blocked == False, User.is_approved == True))
-        users = result.fetchall()
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
-    ])
-    # Анимация загрузки
-    await message.edit_text("⏳ <b>Рассылка отправляется...</b>", parse_mode="HTML")
-    count = 0
-    for row in users:
-        try:
-            await message.bot.send_message(row.tg_id, data['text'], reply_markup=kb)
-            count += 1
-        except Exception:
-            pass
-    await message.edit_text(f"✅ <b>Рассылка отправлена {count} пользователям.</b>", parse_mode="HTML")
-    await state.clear()
-    log_admin_action(message.from_user.id, "news_broadcast", f"text={data['text']}")
+        log_admin_action(callback_query.from_user.id, "news_broadcast", f"text={data['text']}")
+    else:
+        await callback_query.message.edit_text("❌ <b>Рассылка отменена.</b>", parse_mode="HTML")
+        await state.clear()
+    await callback_query.answer()
 
 @router.callback_query(F.data == "admin_menu")
 async def admin_menu_cb(call: CallbackQuery):
@@ -424,7 +429,7 @@ async def show_withdraw_requests(call: CallbackQuery):
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]
     ])
     if not rows:
-        await call.message.answer("<b>Заявок на вывод нет.</b> 🕓", parse_mode="HTML", reply_markup=kb)
+        await call.message.edit_text("<b>Заявок на вывод нет.</b> 🕓", parse_mode="HTML", reply_markup=kb)
         await call.answer()
         return
     # Кнопки для каждой заявки
@@ -432,7 +437,7 @@ async def show_withdraw_requests(call: CallbackQuery):
         [InlineKeyboardButton(text=f"🙍‍♂️ {user.fio or user.tg_id} | {abs(hist.change)}₽ | {(hist.created_at + timedelta(hours=3)).strftime('%d.%m %H:%M')} (МСК)", callback_data=f"withdraw_info_{hist.id}")]
         for hist, user in rows
     ] + [[InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]])
-    await call.message.answer("<b>Заявки на вывод:</b>", reply_markup=req_kb, parse_mode="HTML")
+    await call.message.edit_text("<b>Заявки на вывод:</b>", reply_markup=req_kb, parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data.regexp(r"^withdraw_info_\d+"))
@@ -481,7 +486,7 @@ async def admin_bulk(call: CallbackQuery, state: FSMContext):
     for u in users:
         checked = " ✅" if u.tg_id in selected else ""
         buttons.append([InlineKeyboardButton(text=f"{u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}")])
-    buttons.append([InlineKeyboardButton(text="Далее", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
+    buttons.append([InlineKeyboardButton(text="▶️ Далее", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
     await state.update_data(bulk_selected=selected)
     try:
         await call.message.edit_text("<b>👥 Выберите пользователей для массового действия:</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
@@ -559,7 +564,7 @@ async def bulk_mail_text(message: Message, state: FSMContext):
             count += 1
         except Exception:
             pass
-    await message.answer(f"Рассылка отправлена <b>{count}</b> пользователям.", parse_mode="HTML")
+    await message.edit_text(f"Рассылка отправлена <b>{count}</b> пользователям.", parse_mode="HTML")
     await state.clear()
 
 @router.callback_query(F.data == "bulk_block")
@@ -575,7 +580,7 @@ async def bulk_block(call: CallbackQuery, state: FSMContext):
                 user.is_blocked = True
                 session.add(AdminActionLog(admin_id=call.from_user.id, user_id=tg_id, action="bulk_block", comment=None))
         await session.commit()
-    await call.message.answer(f"Заблокировано пользователей: {len(selected)}")
+    await call.message.edit_text(f"Заблокировано пользователей: {len(selected)}")
     await call.answer()
 
 @router.callback_query(F.data == "bulk_unblock")
@@ -592,5 +597,5 @@ async def bulk_unblock(call: CallbackQuery, state: FSMContext):
                 user.comment = None
                 session.add(AdminActionLog(admin_id=call.from_user.id, user_id=tg_id, action="bulk_unblock", comment=None))
         await session.commit()
-    await call.message.answer(f"Разблокировано пользователей: {len(selected)}")
+    await call.message.edit_text(f"Разблокировано пользователей: {len(selected)}")
     await call.answer() 
