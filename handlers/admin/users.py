@@ -9,7 +9,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from datetime import datetime, timedelta
 from utils.misc import log_admin_action
-from models.referral import Referral
 from keyboards.admin import admin_main_menu
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -140,23 +139,6 @@ async def unblock_user(call: CallbackQuery):
                 pass
     await call.answer("Пользователь разблокирован", show_alert=True)
     await call.message.edit_text("Пользователь разблокирован.")
-
-@router.callback_query(F.data.startswith("refs_"))
-async def show_refs(call: CallbackQuery):
-    tg_id = int(call.data.split("_")[1])
-    async with async_session() as session:
-        result = await session.execute(select(Referral).where(Referral.inviter_id == tg_id))
-        refs = result.scalars().all()
-        if not refs:
-            await call.answer("Нет рефералов", show_alert=True)
-            return
-        text = "Рефералы пользователя:\n"
-        for ref in refs:
-            user_result = await session.execute(select(User).where(User.tg_id == ref.invited_id))
-            invited = user_result.scalar_one_or_none()
-            if invited:
-                text += f"- {invited.fio or invited.tg_id} (ID: {invited.tg_id})\n"
-        await call.message.edit_text(text)
 
 class BalanceChange(StatesGroup):
     action = State()
