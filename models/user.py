@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, BigInteger
 from sqlalchemy.orm import relationship
 from models.base import Base
 from datetime import datetime
@@ -7,7 +7,7 @@ from sqlalchemy import Text
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
-    tg_id = Column(Integer, unique=True)
+    tg_id = Column(BigInteger, unique=True)
     fio = Column(String(255))
     age = Column(Integer)
     passport_photo = Column(String(255))
