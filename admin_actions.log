@@ -1,0 +1,14 @@
+[2025-07-23 20:49:55] admin_id=6068904336 | news_broadcast | text=Тест пися сися кака
+[2025-07-23 20:50:07] admin_id=6068904336 | balance_add | target_user_id=5569681032
+[2025-07-23 21:38:50] admin_id=6068904336 | news_broadcast | text=иест
+[2025-07-23 21:39:04] admin_id=6068904336 | balance_fine | target_user_id=5569681032
+[2025-07-23 21:39:39] admin_id=6068904336 | balance_add | target_user_id=5569681032
+[2025-07-23 21:41:03] admin_id=6068904336 | approve_withdraw | user_id=2, amount=1
+[2025-07-23 21:49:58] admin_id=6068904336 | balance_add | target_user_id=5569681032
+[2025-07-23 21:51:20] admin_id=6068904336 | approve_withdraw | user_id=2, amount=1000
+[2025-07-23 22:07:00] admin_id=6068904336 | balance_add | target_user_id=5569681032
+[2025-07-23 22:07:46] admin_id=6068904336 | approve_withdraw | user_id=2, amount=1000
+[2025-07-23 22:16:39] admin_id=6068904336 | balance_add | target_user_id=5569681032
+[2025-07-23 22:17:21] admin_id=6068904336 | approve_withdraw | user_id=5569681032, amount=10000
+[2025-07-23 22:40:20] admin_id=6068904336 | balance_add | target_user_id=5569681032
+[2025-07-23 22:41:23] admin_id=6068904336 | approve_withdraw | user_id=5569681032, amount=1000
