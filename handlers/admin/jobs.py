@@ -44,15 +44,15 @@ async def show_job_list(call: CallbackQuery):
     ])
     if not jobs:
         try:
-            await call.message.edit_text("<b>Нет созданных заданий.</b> 🗒", reply_markup=kb)
+            await call.message.edit_text("<b>📜 Нет созданных заданий.</b> 🗒", reply_markup=kb, parse_mode="HTML")
         except Exception:
-            await call.message.answer("<b>Нет созданных заданий.</b> 🗒", reply_markup=kb)
+            await call.message.answer("<b>📜 Нет созданных заданий.</b> 🗒", reply_markup=kb, parse_mode="HTML")
         await call.answer()
         return
     try:
-        await call.message.edit_text("<b>Список заданий:</b> 📋", reply_markup=job_list_keyboard(jobs))
+        await call.message.edit_text("<b>📋 Список заданий:</b> 📋", reply_markup=job_list_keyboard(jobs), parse_mode="HTML")
     except Exception:
-        await call.message.answer("<b>Список заданий:</b> 📋", reply_markup=job_list_keyboard(jobs))
+        await call.message.answer("<b>📋 Список заданий:</b> 📋", reply_markup=job_list_keyboard(jobs), parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data.regexp(r"^job_\d+"))
@@ -61,9 +61,9 @@ async def show_job_users(call: CallbackQuery):
     job = await get_job(job_id)
     if not job:
         try:
-            await call.message.edit_text("<b>Задание не найдено!</b> ❌", reply_markup=admin_main_menu())
+            await call.message.edit_text("<b>❌ Задание не найдено!</b> 🔍", reply_markup=admin_main_menu(), parse_mode="HTML")
         except Exception:
-            await call.message.answer("<b>Задание не найдено!</b> ❌", reply_markup=admin_main_menu())
+            await call.message.answer("<b>❌ Задание не найдено!</b> 🔍", reply_markup=admin_main_menu(), parse_mode="HTML")
         await call.answer()
         return
     users = []
@@ -72,15 +72,15 @@ async def show_job_users(call: CallbackQuery):
             if uid:
                 user = await get_or_create_user(int(uid))
                 users.append(user)
-    text = f"<b>📝 Задание:</b> <b>{job.title}</b>\n<b>Описание:</b> {job.description}\n<b>Оплата:</b> {job.pay} ₽\n<b>Работников нужно:</b> {job.workers_needed}\n<b>Записано:</b> {len(users)}"
+    text = f"<b>📝 Задание:</b> <b>{job.title}</b>\n<b>📝 Описание:</b> {job.description}\n<b>💰 Оплата:</b> {job.pay} ₽\n<b>👥 Работников нужно:</b> {job.workers_needed}\n<b>✅ Записано:</b> {len(users)}"
     if users:
-        text += "\n\n<b>Записанные пользователи:</b>"
+        text += "\n\n<b>🙋‍♂️ Записанные пользователи:</b>"
     else:
-        text += "\n\nНет записанных пользователей."
+        text += "\n\n<b>❌ Нет записанных пользователей.</b>"
     try:
-        await call.message.edit_text(text, reply_markup=job_users_keyboard(job.id, users))
+        await call.message.edit_text(text, reply_markup=job_users_keyboard(job.id, users), parse_mode="HTML")
     except Exception:
-        await call.message.answer(text, reply_markup=job_users_keyboard(job.id, users))
+        await call.message.answer(text, reply_markup=job_users_keyboard(job.id, users), parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data.regexp(r"^remove_\d+_\d+"))
@@ -89,9 +89,9 @@ async def remove_user_from_job(call: CallbackQuery, bot):
     job = await get_job(int(job_id))
     if not job:
         try:
-            await call.message.edit_text("<b>Задание не найдено!</b> ❌", reply_markup=admin_main_menu())
+            await call.message.edit_text("<b>❌ Задание не найдено!</b> 🔍", reply_markup=admin_main_menu(), parse_mode="HTML")
         except Exception:
-            await call.message.answer("<b>Задание не найдено!</b> ❌", reply_markup=admin_main_menu())
+            await call.message.answer("<b>❌ Задание не найдено!</b> 🔍", reply_markup=admin_main_menu(), parse_mode="HTML")
         await call.answer()
         return
     # Удаляем пользователя из списка
@@ -107,9 +107,9 @@ async def remove_user_from_job(call: CallbackQuery, bot):
     except Exception:
         pass
     try:
-        await call.message.edit_text(f"🙍‍♂️ Пользователь <b>{user_id}</b> снят с задания!", reply_markup=job_users_keyboard(job.id, [await get_or_create_user(int(uid)) for uid in ids]))
+        await call.message.edit_text(f"🙍‍♂️ Пользователь <b>{user_id}</b> снят с задания!", reply_markup=job_users_keyboard(job.id, [await get_or_create_user(int(uid)) for uid in ids]), parse_mode="HTML")
     except Exception:
-        await call.message.answer(f"🙍‍♂️ Пользователь <b>{user_id}</b> снят с задания!", reply_markup=job_users_keyboard(job.id, [await get_or_create_user(int(uid)) for uid in ids]))
+        await call.message.answer(f"🙍‍♂️ Пользователь <b>{user_id}</b> снят с задания!", reply_markup=job_users_keyboard(job.id, [await get_or_create_user(int(uid)) for uid in ids]), parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data == "job_history")
@@ -117,9 +117,9 @@ async def show_job_history(call: CallbackQuery):
     jobs = await get_jobs()  # Можно добавить фильтр по завершённым, если появится статус
     if not jobs:
         try:
-            await call.message.edit_text("<b>История заданий пуста.</b> 🗒", reply_markup=admin_main_menu())
+            await call.message.edit_text("<b>📜 История заданий пуста.</b> 🗒", reply_markup=admin_main_menu(), parse_mode="HTML")
         except Exception:
-            await call.message.answer("<b>История заданий пуста.</b> 🗒", reply_markup=admin_main_menu())
+            await call.message.answer("<b>📜 История заданий пуста.</b> 🗒", reply_markup=admin_main_menu(), parse_mode="HTML")
         await call.answer()
         return
     for job in jobs:
@@ -129,18 +129,18 @@ async def show_job_history(call: CallbackQuery):
                 if uid:
                     user = await get_or_create_user(int(uid))
                     users.append(user)
-        text = f"<b>📝 Задание:</b> <b>{job.title}</b>\n<b>Описание:</b> {job.description}\n<b>Адрес:</b> {getattr(job, 'address', '—')}\n<b>Оплата:</b> {job.pay} ₽\n<b>Работников нужно:</b> {job.workers_needed}\n<b>Записано:</b> {len(users)}"
+        text = f"<b>📝 Задание:</b> <b>{job.title}</b>\n<b>📝 Описание:</b> {job.description}\n<b>📍 Адрес:</b> {getattr(job, 'address', '—')}\n<b>💸 Оплата:</b> {job.pay} ₽\n<b>👥 Работников нужно:</b> {job.workers_needed}\n<b>✅ Записано:</b> {len(users)}"
         if users:
-            text += "\n\n<b>Участвовали:</b>"
+            text += "\n\n<b>🙋‍♂️ Участвовали:</b>"
         else:
-            text += "\n\nНет участников."
+            text += "\n\n<b>❌ Нет участников.</b>"
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=f"🙍‍♂️ {u.fio or u.tg_id}", callback_data=f"profile_{u.tg_id}")] for u in users
         ])
         try:
-            await call.message.edit_text(text, reply_markup=kb if users else None)
+            await call.message.edit_text(text, reply_markup=kb if users else admin_main_menu(), parse_mode="HTML")
         except Exception:
-            await call.message.answer(text, reply_markup=kb if users else None)
+            await call.message.answer(text, reply_markup=kb if users else admin_main_menu(), parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data.regexp(r"^profile_\d+"))
@@ -154,7 +154,7 @@ async def show_user_profile_from_job(call: CallbackQuery):
 @router.callback_query(F.data == "cancel_job_create")
 async def cancel_job_create_cb(call: CallbackQuery, state: FSMContext):
     await state.clear()
-    await call.message.edit_text("Создание задания отменено.", reply_markup=admin_main_menu())
+    await call.message.edit_text("Создание задания отменено.", reply_markup=admin_main_menu(), parse_mode="HTML")
     await call.answer()
 
 @router.message(F.text == "Создать задание")
@@ -313,7 +313,7 @@ async def finish_job_create(message: Message, state: FSMContext, photo_id):
             await message.bot.send_message(row.tg_id, f"<b>Новое задание!</b>\n{job.title}\n{job.description}", parse_mode="HTML")
         except Exception as e:
             print(f"Ошибка отправки пользователю {row.tg_id}: {e}")
-    await message.answer("Задание создано!", reply_markup=admin_main_menu())
+    await message.answer("Задание создано!", reply_markup=admin_main_menu(), parse_mode="HTML")
     await state.clear()
 
 @router.callback_query(F.data.regexp(r"^delete_job_\d+"))
@@ -337,9 +337,9 @@ async def delete_job(call: CallbackQuery):
     job = await get_job(job_id)
     if not job:
         try:
-            await call.message.edit_text("Задание не найдено или уже удалено.", reply_markup=admin_main_menu())
+            await call.message.edit_text("Задание не найдено или уже удалено.", reply_markup=admin_main_menu(), parse_mode="HTML")
         except Exception:
-            await call.message.answer("Задание не найдено или уже удалено.", reply_markup=admin_main_menu())
+            await call.message.answer("Задание не найдено или уже удалено.", reply_markup=admin_main_menu(), parse_mode="HTML")
         await call.answer()
         return
     # Удаляем сообщение в чате, если есть

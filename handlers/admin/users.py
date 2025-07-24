@@ -21,18 +21,18 @@ async def open_users(call: CallbackQuery):
         result = await session.execute(select(User))
         users = result.scalars().all()
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"{u.fio or u.tg_id}", callback_data=f"user_{u.tg_id}")] for u in users
+            [InlineKeyboardButton(text=f"🙍‍♂️ {u.fio or u.tg_id}", callback_data=f"user_{u.tg_id}")] for u in users
         ] + [[InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]])
         if not users:
             try:
-                await call.message.edit_text("Пользователей нет.", reply_markup=kb)
+                await call.message.edit_text("<b>👥 Пользователей нет.</b>", reply_markup=kb, parse_mode="HTML")
             except Exception:
-                await call.message.answer("Пользователей нет.", reply_markup=kb)
+                await call.message.answer("<b>👥 Пользователей нет.</b>", reply_markup=kb, parse_mode="HTML")
             return
         try:
-            await call.message.edit_text("Список пользователей:", reply_markup=kb)
+            await call.message.edit_text("<b>👥 Список пользователей:</b>", reply_markup=kb, parse_mode="HTML")
         except Exception:
-            await call.message.answer("Список пользователей:", reply_markup=kb)
+            await call.message.answer("<b>👥 Список пользователей:</b>", reply_markup=kb, parse_mode="HTML")
 
 @router.message(F.text == "Список пользователей")
 async def show_users(message: Message):
@@ -40,18 +40,18 @@ async def show_users(message: Message):
         result = await session.execute(select(User))
         users = result.scalars().all()
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"{u.fio or u.tg_id}", callback_data=f"user_{u.tg_id}")] for u in users
+            [InlineKeyboardButton(text=f"🙍‍♂️ {u.fio or u.tg_id}", callback_data=f"user_{u.tg_id}")] for u in users
         ] + [[InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]])
         if not users:
             try:
-                await message.edit_text("Пользователей нет.", reply_markup=kb)
+                await message.edit_text("<b>👥 Пользователей нет.</b>", reply_markup=kb, parse_mode="HTML")
             except Exception:
-                await message.answer("Пользователей нет.", reply_markup=kb)
+                await message.answer("<b>👥 Пользователей нет.</b>", reply_markup=kb, parse_mode="HTML")
             return
         try:
-            await message.edit_text("Список пользователей:", reply_markup=kb)
+            await message.edit_text("<b>👥 Список пользователей:</b>", reply_markup=kb, parse_mode="HTML")
         except Exception:
-            await message.answer("Список пользователей:", reply_markup=kb)
+            await message.answer("<b>👥 Список пользователей:</b>", reply_markup=kb, parse_mode="HTML")
 
 @router.callback_query(F.data.startswith("user_"))
 async def user_info(call: CallbackQuery):
@@ -153,21 +153,21 @@ async def start_balance_change(call: CallbackQuery, state: FSMContext):
     await state.set_state(BalanceChange.amount)
     await state.update_data(action=action, user_id=user_id)
     if action == "add":
-        await call.message.answer("Введите сумму для пополнения баланса:")
+        await call.message.edit_text("💸 <b>Введите сумму для пополнения баланса:</b>", parse_mode="HTML")
     elif action == "fine":
-        await call.message.answer("Введите сумму штрафа (будет вычтено):")
+        await call.message.edit_text("💸 <b>Введите сумму штрафа (будет вычтено):</b>", parse_mode="HTML")
     elif action == "corr":
-        await call.message.answer("Введите сумму корректировки (может быть + или -):")
+        await call.message.edit_text("💸 <b>Введите сумму корректировки (может быть + или -):</b>", parse_mode="HTML")
     await call.answer()
 
 @router.message(StateFilter(BalanceChange.amount))
 async def balance_amount_entered(message: Message, state: FSMContext):
     data = await state.get_data()
     if not message.text.lstrip('-').isdigit():
-        await message.answer("Введите корректную сумму (целое число):")
+        await message.edit_text("❗️ <b>Введите корректную сумму (целое число):</b>", parse_mode="HTML")
         return
     await state.update_data(amount=int(message.text))
-    await message.answer("Введите комментарий к операции (или '-' если не нужен):")
+    await message.edit_text("📝 <b>Введите комментарий к операции (или '-' если не нужен):</b>", parse_mode="HTML")
     await state.set_state(BalanceChange.comment)
 
 @router.message(StateFilter(BalanceChange.comment))
@@ -182,7 +182,7 @@ async def balance_comment_entered(message: Message, state: FSMContext):
         result = await session.execute(select(User).where(User.tg_id == user_id))
         user = result.scalar_one_or_none()
         if not user:
-            await message.answer("Пользователь не найден.")
+            await message.edit_text("❗️ <b>Пользователь не найден.</b>", parse_mode="HTML")
             await state.clear()
             return
         if data["action"] == "add":
@@ -195,15 +195,14 @@ async def balance_comment_entered(message: Message, state: FSMContext):
             user.balance += amount
             op = "корректировка"
         await session.commit()
-    await message.answer(f"Баланс пользователя изменён!\nОперация: <b>{op}</b>\nСумма: <b>{amount}</b>\nКомментарий: {comment}", parse_mode="HTML")
-    # Можно уведомить пользователя
+    await message.edit_text(f"✅ <b>Баланс пользователя изменён!</b>\nОперация: <b>{op}</b>\nСумма: <b>{amount}</b>\nКомментарий: {comment}", parse_mode="HTML")
     try:
         from aiogram import Bot
         bot: Bot = message.bot
-        await bot.send_message(user_id, f"❗️Ваш баланс изменён. Операция: <b>{op}</b>\nСумма: <b>{amount}</b>\nКомментарий: {comment}", parse_mode="HTML")
+        await bot.send_message(user_id, f"💸 <b>Ваш баланс изменён.</b> Операция: <b>{op}</b>\nСумма: <b>{amount}</b>\nКомментарий: {comment}", parse_mode="HTML")
     except Exception:
         pass
-    await state.clear() 
+    await state.clear()
 
 @router.callback_query(F.data.regexp(r"^approve_withdraw_\d+_\d+"))
 async def approve_withdraw(call: CallbackQuery):
@@ -211,7 +210,6 @@ async def approve_withdraw(call: CallbackQuery):
     user_id = int(user_id)
     amount = int(amount)
     log_admin_action(call.from_user.id, "approve_withdraw", f"user_id={user_id}, amount={amount}")
-    # Обновляем статус заявки и баланс (если нужно)
     from core.db import async_session
     from models.user import User, BalanceHistory
     from datetime import datetime
@@ -219,45 +217,86 @@ async def approve_withdraw(call: CallbackQuery):
         result = await session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         if user:
-            # Здесь можно добавить запись в историю, если нужно явно фиксировать выплату
             hist = BalanceHistory(user_id=user.id, change=0, type="выплата", comment="Заявка одобрена админом", created_at=datetime.utcnow())
             session.add(hist)
             await session.merge(user)
             await session.commit()
-    # Уведомляем пользователя
     try:
         await call.bot.send_message(user_id, f"✅ Ваша заявка на вывод <b>{amount} ₽</b> одобрена! Ожидайте поступления средств на указанные реквизиты. 🕓", parse_mode="HTML")
     except Exception as e:
         print(f"Ошибка отправки сообщения о принятии заявки на вывод пользователю {user_id}: {e}")
-    await call.message.edit_text("Заявка одобрена и пользователь уведомлён.")
+    try:
+        await call.message.edit_text("Заявка одобрена и пользователь уведомлён.")
+    except Exception:
+        await call.message.answer("Заявка одобрена и пользователь уведомлён.")
     await call.answer()
 
+class RejectWithdrawFSM(StatesGroup):
+    hist_id = State()
+    comment = State()
+
 @router.callback_query(F.data.regexp(r"^reject_withdraw_\d+_\d+"))
-async def reject_withdraw(call: CallbackQuery):
+async def reject_withdraw_start(call: CallbackQuery, state: FSMContext):
     _, _, user_id, amount = call.data.split('_')
     user_id = int(user_id)
     amount = int(amount)
-    log_admin_action(call.from_user.id, "reject_withdraw", f"user_id={user_id}, amount={amount}")
-    # Возвращаем деньги пользователю
+    # Найти заявку по user_id и amount
+    from models.user import BalanceHistory, User
+    from sqlalchemy import select
+    async with async_session() as session:
+        result = await session.execute(
+            select(BalanceHistory, User)
+            .join(User, User.id == BalanceHistory.user_id)
+            .where(BalanceHistory.user_id == user_id, BalanceHistory.change == -amount, BalanceHistory.type == "вывод")
+            .order_by(BalanceHistory.created_at.desc())
+        )
+        row = result.first()
+    if not row:
+        await call.message.edit_text("❌ <b>Заявка не найдена.</b>", parse_mode="HTML")
+        await call.answer()
+        return
+    hist, user = row
+    await state.set_state(RejectWithdrawFSM.comment)
+    await state.update_data(hist_id=hist.id, user_id=user_id, amount=amount)
+    await call.message.edit_text(
+        f"❌ <b>Отклонение заявки</b>\nПользователь: <b>{user.fio or user.tg_id}</b>\nСумма: <b>{abs(hist.change)} ₽</b>\n\nВведите причину отказа:",
+        parse_mode="HTML"
+    )
+    await call.answer()
+
+@router.message(RejectWithdrawFSM.comment)
+async def reject_withdraw_comment(message: Message, state: FSMContext):
+    data = await state.get_data()
+    comment = message.text.strip()
     from core.db import async_session
     from models.user import User, BalanceHistory
     from datetime import datetime
     async with async_session() as session:
-        result = await session.execute(select(User).where(User.id == user_id))
+        result = await session.execute(select(User).where(User.id == data["user_id"]))
         user = result.scalar_one_or_none()
-        if user:
-            user.balance += amount
-            hist = BalanceHistory(user_id=user.id, change=amount, type="отмена вывода", comment="Заявка отклонена админом", created_at=datetime.utcnow())
-            session.add(hist)
+        result2 = await session.execute(select(BalanceHistory).where(BalanceHistory.id == data["hist_id"]))
+        hist = result2.scalar_one_or_none()
+        if user and hist:
+            user.balance += abs(hist.change)
+            hist_cancel = BalanceHistory(user_id=user.id, change=abs(hist.change), type="отмена вывода", comment=comment, created_at=datetime.utcnow())
+            session.add(hist_cancel)
             await session.merge(user)
             await session.commit()
-    # Уведомляем пользователя
+    # Уведомить пользователя с комментарием
     try:
-        await call.bot.send_message(user_id, f"❌ Ваша заявка на вывод <b>{amount} ₽</b> отклонена. Средства возвращены на баланс.", parse_mode="HTML")
-    except Exception as e:
-        print(f"Ошибка отправки сообщения об отклонении заявки на вывод пользователю {user_id}: {e}")
-    await call.message.edit_text("Заявка отклонена, средства возвращены.")
-    await call.answer()
+        await message.bot.send_message(user.tg_id, f"❌ <b>Ваша заявка на вывод {abs(hist.change)} ₽ отклонена.</b>\nПричина: <b>{comment}</b>\nСредства возвращены на баланс.", parse_mode="HTML")
+    except Exception:
+        pass
+    try:
+        await message.bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=message.message_id-1,
+            text=f"❌ <b>Заявка отклонена.</b>\nПользователь уведомлён.\nПричина: <b>{comment}</b>",
+            parse_mode="HTML"
+        )
+    except Exception:
+        await message.answer(f"❌ <b>Заявка отклонена.</b> Пользователь уведомлён.\nПричина: <b>{comment}</b>", parse_mode="HTML")
+    await state.clear()
 
 @router.callback_query(F.data == "admin_stats")
 async def admin_stats(call: CallbackQuery):
@@ -312,7 +351,7 @@ async def close_notify(call: CallbackQuery):
         await call.message.delete()
     except Exception:
         pass
-    await call.answer() 
+    await call.answer()
 
 class NewsFSM(StatesGroup):
     text = State()
@@ -320,20 +359,20 @@ class NewsFSM(StatesGroup):
 
 @router.callback_query(F.data == "admin_news")
 async def start_news(call: CallbackQuery, state: FSMContext):
-    await call.message.answer("Введите текст новости для рассылки:")
+    await call.message.edit_text("📢 <b>Введите текст новости для рассылки:</b>", parse_mode="HTML")
     await state.set_state(NewsFSM.text)
     await call.answer()
 
 @router.message(NewsFSM.text)
 async def news_text(message: Message, state: FSMContext):
     await state.update_data(text=message.text)
-    await message.answer(f"<b>Текст рассылки:</b>\n{message.text}\n\nОтправить всем пользователям? (да/нет)", parse_mode="HTML")
+    await message.edit_text(f"<b>📢 Текст рассылки:</b>\n{message.text}\n\nОтправить всем пользователям? (да/нет)", parse_mode="HTML")
     await state.set_state(NewsFSM.confirm)
 
 @router.message(NewsFSM.confirm)
 async def news_confirm(message: Message, state: FSMContext):
     if message.text.lower() not in ["да", "yes", "+"]:
-        await message.answer("Рассылка отменена.")
+        await message.edit_text("❌ <b>Рассылка отменена.</b>", parse_mode="HTML")
         await state.clear()
         return
     data = await state.get_data()
@@ -346,6 +385,8 @@ async def news_confirm(message: Message, state: FSMContext):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
     ])
+    # Анимация загрузки
+    await message.edit_text("⏳ <b>Рассылка отправляется...</b>", parse_mode="HTML")
     count = 0
     for row in users:
         try:
@@ -353,8 +394,8 @@ async def news_confirm(message: Message, state: FSMContext):
             count += 1
         except Exception:
             pass
-    await message.answer(f"Рассылка отправлена <b>{count}</b> пользователям.", parse_mode="HTML")
-    await state.clear() 
+    await message.edit_text(f"✅ <b>Рассылка отправлена {count} пользователям.</b>", parse_mode="HTML")
+    await state.clear()
     log_admin_action(message.from_user.id, "news_broadcast", f"text={data['text']}")
 
 @router.callback_query(F.data == "admin_menu")
@@ -364,7 +405,7 @@ async def admin_menu_cb(call: CallbackQuery):
         await call.message.edit_text("Админ-меню:", reply_markup=admin_main_menu())
     except Exception:
         await call.message.answer("Админ-меню:", reply_markup=admin_main_menu())
-    await call.answer() 
+    await call.answer()
 
 # 2. Кнопка 'Назад' в заявках на вывод
 @router.callback_query(F.data == "withdraw_requests")
@@ -388,7 +429,7 @@ async def show_withdraw_requests(call: CallbackQuery):
         return
     # Кнопки для каждой заявки
     req_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"{user.fio or user.tg_id} | {abs(hist.change)}₽ | {(hist.created_at + timedelta(hours=3)).strftime('%d.%m %H:%M')} (МСК)", callback_data=f"withdraw_info_{hist.id}")]
+        [InlineKeyboardButton(text=f"🙍‍♂️ {user.fio or user.tg_id} | {abs(hist.change)}₽ | {(hist.created_at + timedelta(hours=3)).strftime('%d.%m %H:%M')} (МСК)", callback_data=f"withdraw_info_{hist.id}")]
         for hist, user in rows
     ] + [[InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]])
     await call.message.answer("<b>Заявки на вывод:</b>", reply_markup=req_kb, parse_mode="HTML")
@@ -407,7 +448,7 @@ async def show_withdraw_info(call: CallbackQuery):
         )
         row = result.first()
     if not row:
-        await call.message.answer("Заявка не найдена.")
+        await call.message.edit_text("Заявка не найдена.")
         await call.answer()
         return
     hist, user = row
@@ -418,8 +459,16 @@ async def show_withdraw_info(call: CallbackQuery):
             f"Сумма: <b>{abs(hist.change)} ₽</b>\n"
             f"Реквизиты: <b>{hist.comment or '-'} </b>\n"
             f"Дата: <b>{msk_time.strftime('%d.%m %H:%M')} (МСК)</b>")
-    await call.message.answer(text, parse_mode="HTML")
-    await call.answer() 
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Одобрить", callback_data=f"approve_withdraw_{user.tg_id}_{abs(hist.change)}")],
+        [InlineKeyboardButton(text="❌ Отклонить", callback_data=f"reject_withdraw_{user.tg_id}_{abs(hist.change)}")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="withdraw_requests")]
+    ])
+    try:
+        await call.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+    except Exception:
+        await call.message.answer(text, parse_mode="HTML", reply_markup=kb)
+    await call.answer()
 
 @router.callback_query(F.data == "admin_bulk")
 async def admin_bulk(call: CallbackQuery, state: FSMContext):
@@ -432,7 +481,7 @@ async def admin_bulk(call: CallbackQuery, state: FSMContext):
     row = []
     for i, u in enumerate(users):
         checked = " ✅" if u.tg_id in selected else ""
-        row.append(InlineKeyboardButton(text=f"{u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}"))
+        row.append(InlineKeyboardButton(text=f"🙍‍♂️ {u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}"))
         if (i+1) % 3 == 0:
             buttons.append(row)
             row = []
@@ -441,9 +490,9 @@ async def admin_bulk(call: CallbackQuery, state: FSMContext):
     buttons.append([InlineKeyboardButton(text="✅ Продолжить", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
     await state.update_data(bulk_selected=selected)
     try:
-        await call.message.edit_text("Выберите пользователей для массового действия:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+        await call.message.edit_text("<b>👥 Выберите пользователей для массового действия:</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
     except Exception:
-        await call.message.answer("Выберите пользователей для массового действия:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+        await call.message.answer("<b>👥 Выберите пользователей для массового действия:</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data.startswith("bulkselect_"))
@@ -456,7 +505,6 @@ async def bulk_select(call: CallbackQuery, state: FSMContext):
     else:
         selected.append(tg_id)
     await state.update_data(bulk_selected=selected)
-    # обновляем сообщение с клавиатурой
     async with async_session() as session:
         result = await session.execute(select(User))
         users = result.scalars().all()
@@ -464,7 +512,7 @@ async def bulk_select(call: CallbackQuery, state: FSMContext):
     row = []
     for i, u in enumerate(users):
         checked = " ✅" if u.tg_id in selected else ""
-        row.append(InlineKeyboardButton(text=f"{u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}"))
+        row.append(InlineKeyboardButton(text=f"🙍‍♂️ {u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}"))
         if (i+1) % 3 == 0:
             buttons.append(row)
             row = []
@@ -472,9 +520,9 @@ async def bulk_select(call: CallbackQuery, state: FSMContext):
         buttons.append(row)
     buttons.append([InlineKeyboardButton(text="✅ Продолжить", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
     try:
-        await call.message.edit_text("Выберите пользователей для массового действия:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+        await call.message.edit_text("<b>👥 Выберите пользователей для массового действия:</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
     except Exception:
-        await call.message.answer("Выберите пользователей для массового действия:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+        await call.message.answer("<b>👥 Выберите пользователей для массового действия:</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
     await call.answer()
 
 class BulkMailFSM(StatesGroup):

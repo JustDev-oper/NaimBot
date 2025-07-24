@@ -27,21 +27,22 @@ async def show_moderation(message: Message):
         ])
         if not users:
             try:
-                await message.edit_text("Нет пользователей на модерации.", reply_markup=kb)
+                await message.edit_text("<b>🕵️‍♂️ Нет пользователей на модерации.</b>", reply_markup=kb, parse_mode="HTML")
             except Exception:
-                await message.answer("Нет пользователей на модерации.", reply_markup=kb)
+                await message.answer("<b>🕵️‍♂️ Нет пользователей на модерации.</b>", reply_markup=kb, parse_mode="HTML")
             return
         for user in users:
-            text = f"ФИО: {user.fio}\nВозраст: {user.age}"
+            text = f"<b>👤 ФИО:</b> {user.fio}\n<b>🎂 Возраст:</b> {user.age}"
             if user.passport_photo:
                 await message.bot.send_photo(
                     message.chat.id,
                     user.passport_photo,
                     caption=text,
-                    reply_markup=moderation_keyboard(user.tg_id)
+                    reply_markup=moderation_keyboard(user.tg_id),
+                    parse_mode="HTML"
                 )
             else:
-                await message.answer(text, reply_markup=moderation_keyboard(user.tg_id))
+                await message.answer(text, reply_markup=moderation_keyboard(user.tg_id), parse_mode="HTML")
 
 @router.callback_query(F.data.regexp(r"^approve_\d+$"))
 async def approve_user(call: CallbackQuery, bot):
@@ -51,10 +52,8 @@ async def approve_user(call: CallbackQuery, bot):
     try:
         invite_text = "<b>🎉 Ваша заявка одобрена!</b> Добро пожаловать в бота!"
         if settings.WORKERS_CHAT_ID:
-            # Для супергруппы ссылка формата https://t.me/c/2330703831
             chat_link = str(settings.WORKERS_CHAT_LINK)
-            print(chat_link)
-            invite_text += f"\n\nВас приглашают в рабочий чат! Присоединяйтесь: <b>{chat_link}</b>"
+            invite_text += f"\n\nВас приглашают в рабочий чат! <b>{chat_link}</b>"
         await bot.send_message(tg_id, invite_text, reply_markup=user_main_menu(), parse_mode="HTML", disable_web_page_preview=True)
     except Exception as e:
         print(f"[approve_user] Ошибка отправки сообщения о принятии заявки пользователю {tg_id}: {e}")
@@ -63,17 +62,17 @@ async def approve_user(call: CallbackQuery, bot):
             await call.message.delete()
         except Exception:
             pass
-        await call.message.answer("Пользователь одобрен.")
+        await call.message.answer("✅ <b>Пользователь одобрен.</b>", parse_mode="HTML")
     else:
-        await call.message.edit_text("Пользователь одобрен.")
+        await call.message.edit_text("✅ <b>Пользователь одобрен.</b>", parse_mode="HTML")
 
 @router.callback_query(F.data.regexp(r"^reject_\d+$"))
 async def reject_user(call: CallbackQuery, bot):
     tg_id = int(call.data.split("_")[1])
-    await update_user_status(tg_id, is_approved=False, is_blocked=True)  # Блокируем повторную подачу
+    await update_user_status(tg_id, is_approved=False, is_blocked=True)
     # Уведомление пользователю
     try:
-        await bot.send_message(tg_id, "Ваша заявка отклонена. Повторная подача невозможна.")
+        await bot.send_message(tg_id, "❌ <b>Ваша заявка отклонена.</b> Повторная подача невозможна.", parse_mode="HTML")
     except Exception:
         pass
     if call.message.photo or call.message.document:
@@ -81,9 +80,9 @@ async def reject_user(call: CallbackQuery, bot):
             await call.message.delete()
         except Exception:
             pass
-        await call.message.answer("Пользователь отклонён.")
+        await call.message.answer("❌ <b>Пользователь отклонён.</b>", parse_mode="HTML")
     else:
-        await call.message.edit_text("Пользователь отклонён.")
+        await call.message.edit_text("❌ <b>Пользователь отклонён.</b>", parse_mode="HTML")
 
 @router.message(F.text == "🛠 Админ-меню")
 async def admin_menu_text(message: Message):

@@ -24,7 +24,6 @@ class WithdrawFSM(StatesGroup):
 @router.callback_query(F.data == "profile")
 async def show_profile_cb(call: CallbackQuery, state: FSMContext):
     user = await get_or_create_user(call.from_user.id)
-    # Проверка зависших заявок на вывод
     from sqlalchemy import select
     from datetime import datetime, timedelta
     async with async_session() as session:
@@ -36,7 +35,6 @@ async def show_profile_cb(call: CallbackQuery, state: FSMContext):
         history = result.scalars().all()
     now = datetime.utcnow()
     for row in history:
-        # Проверяем, не отменена ли заявка
         async with async_session() as session2:
             cancel_result = await session2.execute(
                 select(BalanceHistory)
@@ -45,16 +43,18 @@ async def show_profile_cb(call: CallbackQuery, state: FSMContext):
             cancel_hist = cancel_result.scalar_one_or_none()
             if cancel_hist:
                 continue
-        # Если заявка старше 24 часов и не отменена
         if (now - row.created_at).total_seconds() > 86400:
-            await call.message.answer("<b>⏰ Напоминание:</b> Ваша заявка на вывод <b>ещё не рассмотрена</b>. Если это займёт больше времени, обратитесь к администратору.", parse_mode="HTML")
+            try:
+                await call.message.edit_text("<b>⏰ Напоминание:</b> Ваша заявка на вывод <b>ещё не рассмотрена</b>. Если это займёт больше времени, обратитесь к администратору.", parse_mode="HTML")
+            except Exception:
+                await call.message.answer("<b>⏰ Напоминание:</b> Ваша заявка на вывод <b>ещё не рассмотрена</b>. Если это займёт больше времени, обратитесь к администратору.", parse_mode="HTML")
             break
-    text = f"Ваш профиль:\nФИО: {user.fio}\nВозраст: {user.age}\nБаланс: {user.balance} ₽"
+    text = f"<b>👤 Ваш профиль</b>\n\n<b>ФИО:</b> {user.fio or '—'}\n<b>Возраст:</b> {user.age or '—'}\n<b>💰 Баланс:</b> <b>{user.balance} ₽</b>"
     kb = user_profile_keyboard()
     try:
-        await call.message.edit_text(text, reply_markup=kb)
+        await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
     except Exception:
-        await call.message.answer(text, reply_markup=kb)
+        await call.message.answer(text, reply_markup=kb, parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data == "withdraw")
@@ -64,9 +64,9 @@ async def withdraw_request(call: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
     ])
     try:
-        await call.message.edit_text("Введите сумму для вывода:", reply_markup=kb)
+        await call.message.edit_text("💸 <b>Введите сумму для вывода:</b>", reply_markup=kb, parse_mode="HTML")
     except Exception:
-        await call.message.answer("Введите сумму для вывода:", reply_markup=kb)
+        await call.message.answer("💸 <b>Введите сумму для вывода:</b>", reply_markup=kb, parse_mode="HTML")
     await state.set_state(WithdrawFSM.amount)
     await call.answer()
 
@@ -78,7 +78,7 @@ async def withdraw_amount(message: Message, state: FSMContext):
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")],
             [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
         ])
-        await message.answer("Введите корректную сумму:", reply_markup=kb)
+        await message.edit_text("❗️ <b>Введите корректную сумму:</b>", reply_markup=kb, parse_mode="HTML")
         return
     amount = int(message.text)
     if amount < 100:
@@ -86,17 +86,17 @@ async def withdraw_amount(message: Message, state: FSMContext):
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")],
             [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
         ])
-        await message.answer("Минимальная сумма для вывода — 100 ₽", reply_markup=kb)
+        await message.edit_text("❗️ <b>Минимальная сумма для вывода — 100 ₽</b>", reply_markup=kb, parse_mode="HTML")
         return
     if amount > user.balance:
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")],
             [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
         ])
-        await message.answer("Недостаточно средств на балансе!", reply_markup=kb)
+        await message.edit_text("❗️ <b>Недостаточно средств на балансе!</b>", reply_markup=kb, parse_mode="HTML")
         return
     await state.update_data(amount=amount)
-    await message.answer("Введите реквизиты для вывода (номер карты, телефон и т.д.):", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]]))
+    await message.edit_text("💳 <b>Введите реквизиты для вывода (номер карты, телефон и т.д.):</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]]), parse_mode="HTML")
     await state.set_state(WithdrawFSM.requisites)
 
 @router.message(WithdrawFSM.requisites)
@@ -107,25 +107,24 @@ async def withdraw_requisites(message: Message, state: FSMContext):
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
     ])
-    await message.answer(f"Подтвердите заявку на вывод:\nСумма: <b>{data['amount']}</b> ₽\nРеквизиты: <b>{data['requisites']}</b>\n\nОтправить заявку? (да/нет)", parse_mode="HTML", reply_markup=kb)
+    await message.edit_text(f"<b>💸 Подтвердите заявку на вывод:</b>\nСумма: <b>{data['amount']}</b> ₽\nРеквизиты: <b>{data['requisites']}</b>\n\nОтправить заявку? (да/нет)", parse_mode="HTML", reply_markup=kb)
     await state.set_state(WithdrawFSM.confirm)
 
 @router.message(WithdrawFSM.confirm)
 async def withdraw_confirm(message: Message, state: FSMContext):
     if message.text.lower() not in ["да", "yes", "+"]:
-        await message.answer("Заявка отменена.", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]]))
+        await message.edit_text("❌ <b>Заявка отменена.</b>", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]]), parse_mode="HTML")
         await state.clear()
         return
     data = await state.get_data()
     user = await get_or_create_user(message.from_user.id)
-    # Сохраняем заявку в историю баланса
     async with async_session() as session:
         hist = BalanceHistory(user_id=user.id, change=-int(data['amount']), type="вывод", comment=data['requisites'], created_at=datetime.utcnow())
         user.balance -= int(data['amount'])
         session.add(hist)
         await session.merge(user)
         await session.commit()
-    await message.answer("<b>✅ Заявка на вывод отправлена!</b>\nПожалуйста, ожидайте подтверждения от администратора. 🕓", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]]))
+    await message.edit_text("✅ <b>Заявка на вывод отправлена!</b>\nПожалуйста, ожидайте подтверждения от администратора. 🕓", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]]))
     await state.clear()
     # Уведомление админов
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -157,15 +156,16 @@ async def show_balance_history(call: CallbackQuery):
     ])
     if not history:
         try:
-            await call.message.edit_text("История баланса пуста.", reply_markup=kb)
+            await call.message.edit_text("<b>📊 История баланса пуста.</b>", reply_markup=kb, parse_mode="HTML")
         except Exception:
-            await call.message.answer("История баланса пуста.", reply_markup=kb)
+            await call.message.answer("<b>📊 История баланса пуста.</b>", reply_markup=kb, parse_mode="HTML")
         await call.answer()
         return
-    text = "<b>Последние операции:</b>\n"
+    text = "<b>📊 Последние операции:</b>\n"
     for row in history:
         msk_time = row.created_at + timedelta(hours=3)
-        text += f"{msk_time.strftime('%d.%m %H:%M')} (МСК) | {row.type} | {row.change} ₽ | {row.comment or ''}\n"
+        emoji = "➕" if row.change > 0 else "➖"
+        text += f"{msk_time.strftime('%d.%m %H:%M')} (МСК) | {row.type} | {emoji} {abs(row.change)} ₽ | {row.comment or ''}\n"
     try:
         await call.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
     except Exception:

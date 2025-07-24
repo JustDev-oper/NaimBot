@@ -23,13 +23,12 @@ async def show_jobs_cb(call: CallbackQuery, state: FSMContext):
             [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
         ])
         try:
-            await call.message.edit_text("Список заданий пока пуст 😔", reply_markup=kb)
+            await call.message.edit_text("<b>📋 Список заданий пока пуст</b> 😔", reply_markup=kb, parse_mode="HTML")
         except Exception:
-            await call.message.answer("Список заданий пока пуст 😔", reply_markup=kb)
+            await call.message.answer("<b>📋 Список заданий пока пуст</b> 😔", reply_markup=kb, parse_mode="HTML")
         await call.answer()
         return
     await state.update_data(jobs=[job.id for job in jobs], job_index=0)
-    # show_job теперь всегда edit (edit=True)
     await show_job(call, state, jobs, 0, edit=True)
     await call.answer()
 
@@ -38,7 +37,6 @@ async def show_job(call, state, jobs, index, edit=True):
     from services.job_service import get_job
     job_id = jobs[index] if isinstance(jobs[index], int) else jobs[index].id
     job = await get_job(job_id)
-    # Форматируем дату и время
     day = job.start_time.day
     month = RU_MONTHS[job.start_time.month]
     start_time_str = job.start_time.strftime('%H:%M')
@@ -54,9 +52,8 @@ async def show_job(call, state, jobs, index, edit=True):
         f"<b>💸 Оплата:</b> <b>{job.pay} ₽</b>\n"
         f"<b>👤 Возраст:</b> от {job.min_age} - {('до ' + str(job.max_age)) if job.max_age != 99 else 'без ограничений'}\n"
         f"<b>🕒 Время:</b> {date_str}\n\n"
-        f"<b>👥 Мест всего:</b> {job.workers_needed}\n\n"
-        f"<b>Свободно:</b> {places}\n"
-        f"<b>Записано:</b> {taken}"
+        f"<b>👥 Мест всего:</b> {job.workers_needed}\n"
+        f"<b>🟩 Свободно:</b> {free}   <b>🟥 Занято:</b> {taken}"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
@@ -67,12 +64,9 @@ async def show_job(call, state, jobs, index, edit=True):
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
     ])
     if job.photo:
-        if edit:
-            try:
-                await call.message.edit_caption(caption=text, reply_markup=kb, parse_mode="HTML")
-            except Exception:
-                await call.message.answer_photo(job.photo, caption=text, reply_markup=kb, parse_mode="HTML")
-        else:
+        try:
+            await call.message.edit_caption(caption=text, reply_markup=kb, parse_mode="HTML")
+        except Exception:
             await call.message.answer_photo(job.photo, caption=text, reply_markup=kb, parse_mode="HTML")
     else:
         if edit:
@@ -117,49 +111,41 @@ async def apply_job(call: CallbackQuery):
     job = await get_job(job_id)
     from services.user_service import get_or_create_user
     user = await get_or_create_user(call.from_user.id)
+    try:
+        await call.message.edit_text("⏳ <b>Проверяем возможность отклика...</b>", parse_mode="HTML")
+    except Exception:
+        pass
     if user.age is None or user.age < job.min_age or user.age > job.max_age:
-        await call.answer(f"❗️Ваш возраст не подходит для этого задания! (допустимо: {job.min_age}-{job.max_age})", show_alert=True)
+        await call.message.edit_text(f"❗️ <b>Ваш возраст не подходит для этого задания!</b>\n(допустимо: {job.min_age}-{job.max_age})", parse_mode="HTML")
+        await call.answer()
         return
     ok = await apply_for_job(job_id, call.from_user.id)
     if ok:
         await call.answer("✅ Вы успешно откликнулись на задание!", show_alert=True)
-        # Обновляем сообщение в группе
-        from core.config import settings
-        if settings.WORKERS_CHAT_ID and call.message.chat.id == settings.WORKERS_CHAT_ID:
-            # Получаем актуальные данные о job после записи
-            job = await get_job(job_id)
-            total = job.workers_needed
-            ids = job.workers.split(',') if job.workers else []
-            taken = len(ids)
-            free = total - taken
-            places = ' '.join(['🟥'] * taken + ['🟩'] * free)
-            # Форматируем дату и время
-            day = job.start_time.day
-            month = RU_MONTHS[job.start_time.month]
-            start_time_str = job.start_time.strftime('%H:%M')
-            end_time_str = job.end_time.strftime('%H:%M')
-            date_str = f"{day} {month} {start_time_str} - {end_time_str}"
-            text = (
-                f"<b>📝 {job.title}</b>\n\n"
-                f"<b>📄 Описание:</b> {job.description}\n"
-                f"<b>📍 Адрес:</b> {job.address}\n"
-                f"<b>💸 Оплата:</b> <b>{job.pay} ₽</b>\n"
-                f"<b>👤 Возраст:</b> от {job.min_age} - {('до ' + str(job.max_age)) if job.max_age != 99 else 'без ограничений'}\n"
-                f"<b>🕒 Время:</b> {date_str}\n\n"
-                f"<b>👥 Мест всего:</b> {job.workers_needed}\n\n"
-                f"<b>Свободно:</b> {places}\n"
-                f"<b>Записано:</b> {taken}"
-            )
-            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-            kb = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="✋ Записаться", callback_data=f"apply_{job.id}")]
-            ])
-            try:
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Вы записаны", callback_data="applied")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
+        ])
+        text = (
+            f"<b>📝 {job.title}</b>\n\n"
+            f"<b>📄 Описание:</b> {job.description}\n"
+            f"<b>📍 Адрес:</b> {job.address}\n"
+            f"<b>💸 Оплата:</b> <b>{job.pay} ₽</b>\n"
+            f"<b>👤 Возраст:</b> от {job.min_age} - {('до ' + str(job.max_age)) if job.max_age != 99 else 'без ограничений'}\n"
+            f"<b>🕒 Время:</b> {job.start_time.day} {RU_MONTHS[job.start_time.month]} {job.start_time.strftime('%H:%M')} - {job.end_time.strftime('%H:%M')}\n\n"
+            f"<b>👥 Мест всего:</b> {job.workers_needed}\n"
+            f"<b>🟩 Свободно:</b> {job.workers_needed - (len(job.workers.split(',')) if job.workers else 0)}   <b>🟥 Занято:</b> {len(job.workers.split(',')) if job.workers else 0}"
+        )
+        try:
+            if job.photo:
+                await call.message.edit_caption(caption=text, reply_markup=kb, parse_mode="HTML")
+            else:
                 await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
-            except Exception:
-                pass
+        except Exception:
+            pass
     else:
-        await call.answer("❌ Не удалось откликнуться (возможно, вы уже записаны или мест нет)", show_alert=True)
+        await call.message.edit_text("❗️ <b>Не удалось откликнуться. Попробуйте позже.</b>", parse_mode="HTML")
+        await call.answer()
 
 
 @router.message(Command("start"))
@@ -193,8 +179,7 @@ async def handle_deep_link(message: Message, state: FSMContext):
             f"<b>👤 Возраст:</b> от {job.min_age} - {('до ' + str(job.max_age)) if job.max_age != 99 else 'без ограничений'}\n"
             f"<b>🕒 Время:</b> {date_str}\n\n"
             f"<b>👥 Мест всего:</b> {job.workers_needed}\n\n"
-            f"<b>Свободно:</b> {places}\n"
-            f"<b>Записано:</b> {taken}"
+            f"<b>🟩 Свободно:</b> {free}   <b>🟥 Занято:</b> {taken}"
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="✅ Записаться", callback_data=f"apply_{job.id}"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
