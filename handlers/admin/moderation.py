@@ -54,7 +54,11 @@ async def approve_user(call: CallbackQuery, bot):
     except Exception as e:
         print(f"[approve_user] Ошибка отправки сообщения о принятии заявки пользователю {tg_id}: {e}")
     if call.message.photo or call.message.document:
-        await call.message.edit_caption("Пользователь одобрен.")
+        try:
+            await call.message.delete()
+        except Exception:
+            pass
+        await call.message.answer("Пользователь одобрен.")
     else:
         await call.message.edit_text("Пользователь одобрен.")
 
@@ -68,7 +72,11 @@ async def reject_user(call: CallbackQuery, bot):
     except Exception:
         pass
     if call.message.photo or call.message.document:
-        await call.message.edit_caption("Пользователь отклонён.")
+        try:
+            await call.message.delete()
+        except Exception:
+            pass
+        await call.message.answer("Пользователь отклонён.")
     else:
         await call.message.edit_text("Пользователь отклонён.")
 

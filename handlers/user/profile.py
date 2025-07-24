@@ -51,7 +51,10 @@ async def show_profile_cb(call: CallbackQuery, state: FSMContext):
             break
     text = f"Ваш профиль:\nФИО: {user.fio}\nВозраст: {user.age}\nБаланс: {user.balance} ₽"
     kb = user_profile_keyboard()
-    await call.message.answer(text, reply_markup=kb)
+    try:
+        await call.message.edit_text(text, reply_markup=kb)
+    except Exception:
+        await call.message.answer(text, reply_markup=kb)
     await call.answer()
 
 @router.callback_query(F.data == "withdraw")
@@ -60,7 +63,10 @@ async def withdraw_request(call: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
     ])
-    await call.message.answer("Введите сумму для вывода:", reply_markup=kb)
+    try:
+        await call.message.edit_text("Введите сумму для вывода:", reply_markup=kb)
+    except Exception:
+        await call.message.answer("Введите сумму для вывода:", reply_markup=kb)
     await state.set_state(WithdrawFSM.amount)
     await call.answer()
 
@@ -145,20 +151,25 @@ async def show_balance_history(call: CallbackQuery):
             BalanceHistory.__table__.select().where(BalanceHistory.user_id == user.id).order_by(BalanceHistory.created_at.desc()).limit(10)
         )
         history = result.fetchall()
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
+    ])
     if not history:
-        await call.message.answer("История баланса пуста.")
+        try:
+            await call.message.edit_text("История баланса пуста.", reply_markup=kb)
+        except Exception:
+            await call.message.answer("История баланса пуста.", reply_markup=kb)
         await call.answer()
         return
     text = "<b>Последние операции:</b>\n"
     for row in history:
         msk_time = row.created_at + timedelta(hours=3)
         text += f"{msk_time.strftime('%d.%m %H:%M')} (МСК) | {row.type} | {row.change} ₽ | {row.comment or ''}\n"
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")],
-        [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
-    ])
-    await call.message.answer(text, parse_mode="HTML", reply_markup=kb)
+    try:
+        await call.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+    except Exception:
+        await call.message.answer(text, parse_mode="HTML", reply_markup=kb)
     await call.answer()
 
 @router.callback_query(F.data == "my_withdraw_requests")
@@ -173,8 +184,15 @@ async def show_my_withdraw_requests(call: CallbackQuery):
             .order_by(desc(BalanceHistory.created_at))
         )
         history = result.scalars().all()
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
+    ])
     if not history:
-        await call.message.answer("<b>У вас нет заявок на вывод.</b> 🕓", parse_mode="HTML")
+        try:
+            await call.message.edit_text("<b>У вас нет заявок на вывод.</b> 🕓", parse_mode="HTML", reply_markup=kb)
+        except Exception:
+            await call.message.answer("<b>У вас нет заявок на вывод.</b> 🕓", parse_mode="HTML", reply_markup=kb)
         await call.answer()
         return
     text = "<b>Ваши заявки на вывод:</b>\n"
@@ -198,11 +216,10 @@ async def show_my_withdraw_requests(call: CallbackQuery):
             pass
         msk_time = row.created_at + timedelta(hours=3)
         text += f"<b>{abs(row.change)} ₽</b> | {row.comment or ''} | {msk_time.strftime('%d.%m %H:%M')} (МСК) | <b>{status}</b>\n"
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
-    ])
-    await call.message.answer(text, parse_mode="HTML", reply_markup=kb)
+    try:
+        await call.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+    except Exception:
+        await call.message.answer(text, parse_mode="HTML", reply_markup=kb)
     await call.answer()
 
 @router.callback_query(F.data == "close_notify")
@@ -216,5 +233,8 @@ async def close_notify(call: CallbackQuery):
 
 @router.callback_query(F.data == "main_menu")
 async def main_menu_cb(call: CallbackQuery):
-    await call.message.answer("Главное меню:", reply_markup=user_main_menu())
+    try:
+        await call.message.edit_text("Главное меню:", reply_markup=user_main_menu())
+    except Exception:
+        await call.message.answer("Главное меню:", reply_markup=user_main_menu())
     await call.answer()

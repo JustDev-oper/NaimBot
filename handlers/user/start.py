@@ -82,7 +82,10 @@ async def subscribe_jobs(call: CallbackQuery):
     await update_user_status(call.from_user.id, is_subscribed=True)
     from keyboards.user import user_main_menu
     user = await get_or_create_user(call.from_user.id)
-    await call.message.edit_text("Вы подписались на уведомления о новых заданиях!", reply_markup=user_main_menu(is_subscribed=True))
+    try:
+        await call.message.edit_text("Вы подписались на уведомления о новых заданиях!", reply_markup=user_main_menu(is_subscribed=True))
+    except Exception:
+        await call.message.answer("Вы подписались на уведомления о новых заданиях!", reply_markup=user_main_menu(is_subscribed=True))
     await call.answer()
 
 @router.callback_query(F.data == "unsubscribe_jobs")
@@ -91,7 +94,10 @@ async def unsubscribe_jobs(call: CallbackQuery):
     await update_user_status(call.from_user.id, is_subscribed=False)
     from keyboards.user import user_main_menu
     user = await get_or_create_user(call.from_user.id)
-    await call.message.edit_text("Вы отписались от уведомлений о новых заданиях.", reply_markup=user_main_menu(is_subscribed=False))
+    try:
+        await call.message.edit_text("Вы отписались от уведомлений о новых заданиях.", reply_markup=user_main_menu(is_subscribed=False))
+    except Exception:
+        await call.message.answer("Вы отписались от уведомлений о новых заданиях.", reply_markup=user_main_menu(is_subscribed=False))
     await call.answer()
 
 @router.message(F.text == "🏠 Главное меню")

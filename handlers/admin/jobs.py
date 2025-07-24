@@ -232,9 +232,6 @@ async def finish_job_create(message: Message, state: FSMContext, photo_id):
     group_message_id = None
     if settings.WORKERS_CHAT_ID:
         total = job.workers_needed
-        taken = 0
-        free = total - taken
-        places = ' '.join(['🟩'] * free)
         # Форматируем дату и время
         day = job.start_time.day
         month = RU_MONTHS[job.start_time.month]
@@ -248,11 +245,13 @@ async def finish_job_create(message: Message, state: FSMContext, photo_id):
                 f"<b>Оплата:</b> {job.pay} ₽\n"
                 f"<b>Возраст:</b> {job.min_age} - {job.max_age if job.max_age != 99 else 'без ограничений'}\n"
                 f"<b>Время:</b> {date_str}\n"
-                f"<b>Мест:</b> {total}\n"
-                f"<b>Свободно:</b> {places}")
+                f"<b>Мест:</b> {total}")
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        # Кнопка-ссылка на бота с параметром job_id
+        bot_username = settings.BOT_USERNAME if hasattr(settings, 'BOT_USERNAME') else 'NaimBot'
+        deep_link = f"https://t.me/{bot_username}?start=job_{job.id}"
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✋ Записаться", callback_data=f"apply_{job.id}")]
+            [InlineKeyboardButton(text="✋ Записаться", url=deep_link)]
         ])
         bot = message.bot
         try:
