@@ -310,7 +310,17 @@ async def finish_job_create(message: Message, state: FSMContext, photo_id):
         users = result.fetchall()
     for row in users:
         try:
-            await message.bot.send_message(row.tg_id, f"<b>Новое задание!</b>\n{job.title}\n{job.description}", parse_mode="HTML")
+            text = (
+                f"<b>📝 Новое задание!</b>\n"
+                f"<b>Название:</b> {job.title}\n"
+                f"<b>Описание:</b> {job.description}\n"
+                f"<b>Адрес:</b> {job.address}\n"
+                f"<b>Оплата:</b> <b>{job.pay} ₽</b>\n"
+                f"<b>Возраст:</b> {job.min_age} - {job.max_age if job.max_age != 99 else 'без ограничений'}\n"
+                f"<b>Время:</b> {job.start_time.strftime('%d.%m %H:%M')} - {job.end_time.strftime('%H:%M')}\n"
+            )
+            
+            await message.bot.send_message(row.tg_id, text, parse_mode="HTML")
         except Exception as e:
             print(f"Ошибка отправки пользователю {row.tg_id}: {e}")
     await message.answer("Задание создано!", reply_markup=admin_main_menu(), parse_mode="HTML")
