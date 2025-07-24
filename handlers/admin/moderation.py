@@ -1,5 +1,5 @@
 from aiogram import Router
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy.future import select
 from core.db import async_session
 from models.user import User
@@ -21,10 +21,15 @@ async def show_moderation(message: Message):
     async with async_session() as session:
         result = await session.execute(select(User).where(User.is_approved == False, User.is_blocked == False))
         users = result.scalars().all()
-        # Фильтруем заявки без ФИО и возраста
         users = [u for u in users if u.fio and u.age]
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]
+        ])
         if not users:
-            await message.answer("Нет пользователей на модерации.")
+            try:
+                await message.edit_text("Нет пользователей на модерации.", reply_markup=kb)
+            except Exception:
+                await message.answer("Нет пользователей на модерации.", reply_markup=kb)
             return
         for user in users:
             text = f"ФИО: {user.fio}\nВозраст: {user.age}"

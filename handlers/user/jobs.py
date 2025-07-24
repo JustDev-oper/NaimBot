@@ -20,7 +20,6 @@ async def show_jobs_cb(call: CallbackQuery, state: FSMContext):
     if not jobs:
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")],
-            [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")],
             [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
         ])
         try:
@@ -65,8 +64,7 @@ async def show_job(call, state, jobs, index, edit=True):
             InlineKeyboardButton(text="✅ Откликнуться", callback_data=f"apply_{job.id}"),
             InlineKeyboardButton(text="➡️", callback_data="job_next")
         ],
-        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")],
-        [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
     ])
     if job.photo:
         if edit:

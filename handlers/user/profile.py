@@ -60,7 +60,7 @@ async def show_profile_cb(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "withdraw")
 async def withdraw_request(call: CallbackQuery, state: FSMContext):
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile")],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
     ])
     try:

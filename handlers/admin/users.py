@@ -22,13 +22,19 @@ async def show_users(message: Message):
     async with async_session() as session:
         result = await session.execute(select(User))
         users = result.scalars().all()
-        if not users:
-            await message.answer("Пользователей нет.")
-            return
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=f"{u.fio or u.tg_id}", callback_data=f"user_{u.tg_id}")] for u in users
-        ])
-        await message.answer("Список пользователей:", reply_markup=kb)
+        ] + [[InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]])
+        if not users:
+            try:
+                await message.edit_text("Пользователей нет.", reply_markup=kb)
+            except Exception:
+                await message.answer("Пользователей нет.", reply_markup=kb)
+            return
+        try:
+            await message.edit_text("Список пользователей:", reply_markup=kb)
+        except Exception:
+            await message.answer("Список пользователей:", reply_markup=kb)
 
 @router.callback_query(F.data.startswith("user_"))
 async def user_info(call: CallbackQuery):
@@ -45,9 +51,9 @@ async def user_info(call: CallbackQuery):
              InlineKeyboardButton(text="➖ Штраф", callback_data=f"balance_fine_{user.tg_id}")],
             [InlineKeyboardButton(text="⚙️ Корректировка", callback_data=f"balance_corr_{user.tg_id}")],
             [InlineKeyboardButton(text="🚫 Заблокировать навсегда", callback_data=f"block_forever_{user.tg_id}")],
-             [InlineKeyboardButton(text="⏳ Заблокировать на 1 день", callback_data=f"block_1d_{user.tg_id}")],
-             [InlineKeyboardButton(text="🔓 Разблокировать", callback_data=f"unblock_{user.tg_id}")],
-            [InlineKeyboardButton(text="Назад", callback_data="users")]
+            [InlineKeyboardButton(text="⏳ Заблокировать на 1 день", callback_data=f"block_1d_{user.tg_id}")],
+            [InlineKeyboardButton(text="🔓 Разблокировать", callback_data=f"unblock_{user.tg_id}")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="users"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
         ])
         if user.passport_photo:
             try:
@@ -56,7 +62,10 @@ async def user_info(call: CallbackQuery):
                 pass
             await call.message.answer_photo(user.passport_photo, caption=text, reply_markup=kb, parse_mode="HTML")
         else:
-            await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+            try:
+                await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+            except Exception:
+                await call.message.answer(text, reply_markup=kb, parse_mode="HTML")
         await call.answer()
 
 @router.callback_query(F.data.startswith("block_forever_"))
@@ -407,23 +416,27 @@ async def show_withdraw_info(call: CallbackQuery):
 
 @router.callback_query(F.data == "admin_bulk")
 async def admin_bulk(call: CallbackQuery, state: FSMContext):
-    # Получаем всех пользователей
     async with async_session() as session:
         result = await session.execute(select(User))
         users = result.scalars().all()
-    # Формируем кнопки для выбора пользователей (по 3 в ряд)
+    data = await state.get_data()
+    selected = data.get("bulk_selected", [])
     buttons = []
     row = []
     for i, u in enumerate(users):
-        row.append(InlineKeyboardButton(text=f"{u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}", callback_data=f"bulkselect_{u.tg_id}"))
+        checked = " ✅" if u.tg_id in selected else ""
+        row.append(InlineKeyboardButton(text=f"{u.fio or u.tg_id}{' 🔒' if u.is_blocked else ''}{checked}", callback_data=f"bulkselect_{u.tg_id}"))
         if (i+1) % 3 == 0:
             buttons.append(row)
             row = []
     if row:
         buttons.append(row)
-    buttons.append([InlineKeyboardButton(text="✅ Продолжить", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")])
-    await state.update_data(bulk_selected=[])
-    await call.message.answer("Выберите пользователей для массового действия:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    buttons.append([InlineKeyboardButton(text="✅ Продолжить", callback_data="bulk_continue"), InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu"), InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")])
+    await state.update_data(bulk_selected=selected)
+    try:
+        await call.message.edit_text("Выберите пользователей для массового действия:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+    except Exception:
+        await call.message.answer("Выберите пользователей для массового действия:", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
     await call.answer()
 
 @router.callback_query(F.data.startswith("bulkselect_"))

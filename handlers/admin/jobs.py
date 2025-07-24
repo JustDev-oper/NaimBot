@@ -39,11 +39,14 @@ async def open_create_job(call: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "job_list")
 async def show_job_list(call: CallbackQuery):
     jobs = await get_jobs()
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]
+    ])
     if not jobs:
         try:
-            await call.message.edit_text("<b>Нет созданных заданий.</b> 🗒", reply_markup=admin_main_menu())
+            await call.message.edit_text("<b>Нет созданных заданий.</b> 🗒", reply_markup=kb)
         except Exception:
-            await call.message.answer("<b>Нет созданных заданий.</b> 🗒", reply_markup=admin_main_menu())
+            await call.message.answer("<b>Нет созданных заданий.</b> 🗒", reply_markup=kb)
         await call.answer()
         return
     try:
@@ -315,7 +318,10 @@ async def confirm_delete_job(call: CallbackQuery):
         [InlineKeyboardButton(text="❗️ Подтвердить удаление", callback_data=f"delete_job_confirm_{job_id}")],
         [InlineKeyboardButton(text="Отмена", callback_data=f"job_{job_id}")]
     ])
-    await call.message.answer("Вы уверены, что хотите удалить это задание? Это действие <b>необратимо</b>!", reply_markup=kb, parse_mode="HTML")
+    try:
+        await call.message.edit_text("Вы уверены, что хотите удалить это задание? Это действие <b>необратимо</b>!", reply_markup=kb, parse_mode="HTML")
+    except Exception:
+        await call.message.answer("Вы уверены, что хотите удалить это задание? Это действие <b>необратимо</b>!", reply_markup=kb, parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data.regexp(r"^delete_job_confirm_\d+"))
@@ -325,7 +331,10 @@ async def delete_job(call: CallbackQuery):
     from core.db import async_session
     job = await get_job(job_id)
     if not job:
-        await call.message.answer("Задание не найдено или уже удалено.")
+        try:
+            await call.message.edit_text("Задание не найдено или уже удалено.", reply_markup=admin_main_menu())
+        except Exception:
+            await call.message.answer("Задание не найдено или уже удалено.", reply_markup=admin_main_menu())
         await call.answer()
         return
     # Удаляем сообщение в чате, если есть
@@ -339,7 +348,10 @@ async def delete_job(call: CallbackQuery):
     async with async_session() as session:
         await session.delete(job)
         await session.commit()
-    await call.message.answer("🗑 <b>Задание удалено!</b>", parse_mode="HTML")
+    try:
+        await call.message.edit_text("🗑 <b>Задание удалено!</b>", parse_mode="HTML", reply_markup=admin_main_menu())
+    except Exception:
+        await call.message.answer("🗑 <b>Задание удалено!</b>", parse_mode="HTML", reply_markup=admin_main_menu())
     await call.answer()
 
 @router.message(StateFilter(JobCreate), F.text == "❌ Отмена")
