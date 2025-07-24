@@ -97,7 +97,10 @@ async def block_forever(call: CallbackQuery):
         session.add(log)
         await session.commit()
     await call.answer("Пользователь заблокирован навсегда", show_alert=True)
-    await call.message.edit_text("Пользователь заблокирован навсегда.")
+    try:
+        await call.message.edit_text("Пользователь заблокирован навсегда.")
+    except Exception:
+        await call.message.answer("Пользователь заблокирован навсегда.")
 
 @router.callback_query(F.data.startswith("block_1d_"))
 async def block_1d(call: CallbackQuery):
@@ -116,7 +119,10 @@ async def block_1d(call: CallbackQuery):
             session.add(log)
             await session.commit()
     await call.answer("Пользователь заблокирован на 1 день", show_alert=True)
-    await call.message.edit_text("Пользователь заблокирован на 1 день.")
+    try:
+        await call.message.edit_text("Пользователь заблокирован на 1 день.")
+    except Exception:
+        await call.message.answer("Пользователь заблокирован на 1 день.")
 
 @router.callback_query(F.data.startswith("unblock_"))
 async def unblock_user(call: CallbackQuery):
@@ -139,7 +145,10 @@ async def unblock_user(call: CallbackQuery):
             except Exception:
                 pass
     await call.answer("Пользователь разблокирован", show_alert=True)
-    await call.message.edit_text("Пользователь разблокирован.")
+    try:
+        await call.message.edit_text("Пользователь разблокирован.")
+    except Exception:
+        await call.message.answer("Пользователь разблокирован.")
 
 class BalanceChange(StatesGroup):
     action = State()
@@ -343,7 +352,10 @@ async def admin_stats(call: CallbackQuery):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]
     ])
-    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    try:
+        await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    except Exception:
+        await call.message.answer(text, reply_markup=kb, parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data == "close_notify")
@@ -390,7 +402,10 @@ async def process_news_confirm(callback_query: CallbackQuery, state: FSMContext)
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_notify")]
         ])
-        await callback_query.message.edit_text("⏳ <b>Рассылка отправляется...</b>", parse_mode="HTML")
+        try:
+            await callback_query.message.edit_text("⏳ <b>Рассылка отправляется...</b>", parse_mode="HTML")
+        except Exception:
+            await callback_query.message.answer("⏳ <b>Рассылка отправляется...</b>", parse_mode="HTML")
         count = 0
         for row in users:
             try:
@@ -398,11 +413,17 @@ async def process_news_confirm(callback_query: CallbackQuery, state: FSMContext)
                 count += 1
             except Exception:
                 pass
-        await callback_query.message.edit_text(f"✅ <b>Рассылка отправлена {count} пользователям.</b>", parse_mode="HTML")
+        try:
+            await callback_query.message.edit_text(f"✅ <b>Рассылка отправлена {count} пользователям.</b>", parse_mode="HTML")
+        except Exception:
+            await callback_query.message.answer(f"✅ <b>Рассылка отправлена {count} пользователям.</b>", parse_mode="HTML")
         await state.clear()
         log_admin_action(callback_query.from_user.id, "news_broadcast", f"text={data['text']}")
     else:
-        await callback_query.message.edit_text("❌ <b>Рассылка отменена.</b>", parse_mode="HTML")
+        try:
+            await callback_query.message.edit_text("❌ <b>Рассылка отменена.</b>", parse_mode="HTML")
+        except Exception:
+            await callback_query.message.answer("❌ <b>Рассылка отменена.</b>", parse_mode="HTML")
         await state.clear()
     await callback_query.answer()
 
@@ -432,7 +453,10 @@ async def show_withdraw_requests(call: CallbackQuery):
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]
     ])
     if not rows:
-        await call.message.edit_text("<b>Заявок на вывод нет.</b> 🕓", parse_mode="HTML", reply_markup=kb)
+        try:
+            await call.message.edit_text("<b>Заявок на вывод нет.</b> 🕓", parse_mode="HTML", reply_markup=kb)
+        except Exception:
+            await call.message.answer("<b>Заявок на вывод нет.</b> 🕓", parse_mode="HTML", reply_markup=kb)
         await call.answer()
         return
     # Кнопки для каждой заявки
@@ -440,7 +464,10 @@ async def show_withdraw_requests(call: CallbackQuery):
         [InlineKeyboardButton(text=f"🙍‍♂️ {user.fio or user.tg_id} | {abs(hist.change)}₽ | {(hist.created_at + timedelta(hours=3)).strftime('%d.%m %H:%M')} (МСК)", callback_data=f"withdraw_info_{hist.id}")]
         for hist, user in rows
     ] + [[InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]])
-    await call.message.edit_text("<b>Заявки на вывод:</b>", reply_markup=req_kb, parse_mode="HTML")
+    try:
+        await call.message.edit_text("<b>Заявки на вывод:</b>", reply_markup=req_kb, parse_mode="HTML")
+    except Exception:
+        await call.message.answer("<b>Заявки на вывод:</b>", reply_markup=req_kb, parse_mode="HTML")
     await call.answer()
 
 @router.callback_query(F.data.regexp(r"^withdraw_info_\d+"))
