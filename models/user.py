@@ -31,8 +31,8 @@ class BalanceHistory(Base):
 class AdminActionLog(Base):
     __tablename__ = "admin_action_log"
     id = Column(Integer, primary_key=True)
-    admin_id = Column(Integer, nullable=False)
-    user_id = Column(Integer, nullable=False)
+    admin_id = Column(BigInteger, nullable=False)
+    user_id = Column(BigInteger, nullable=False)
     action = Column(String(255))  # block, unblock, block_1d, etc
     comment = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow) 
