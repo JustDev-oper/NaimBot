@@ -97,10 +97,7 @@ async def block_forever(call: CallbackQuery):
         session.add(log)
         await session.commit()
     await call.answer("Пользователь заблокирован навсегда", show_alert=True)
-    try:
-        await call.message.edit_text("Пользователь заблокирован навсегда.")
-    except Exception:
-        await call.message.answer("Пользователь заблокирован навсегда.")
+
 
 @router.callback_query(F.data.startswith("block_1d_"))
 async def block_1d(call: CallbackQuery):
@@ -119,10 +116,7 @@ async def block_1d(call: CallbackQuery):
             session.add(log)
             await session.commit()
     await call.answer("Пользователь заблокирован на 1 день", show_alert=True)
-    try:
-        await call.message.edit_text("Пользователь заблокирован на 1 день.")
-    except Exception:
-        await call.message.answer("Пользователь заблокирован на 1 день.")
+
 
 @router.callback_query(F.data.startswith("unblock_"))
 async def unblock_user(call: CallbackQuery):
@@ -145,10 +139,7 @@ async def unblock_user(call: CallbackQuery):
             except Exception:
                 pass
     await call.answer("Пользователь разблокирован", show_alert=True)
-    try:
-        await call.message.edit_text("Пользователь разблокирован.")
-    except Exception:
-        await call.message.answer("Пользователь разблокирован.")
+
 
 class BalanceChange(StatesGroup):
     action = State()
@@ -162,22 +153,23 @@ async def start_balance_change(call: CallbackQuery, state: FSMContext):
     log_admin_action(call.from_user.id, f"balance_{action}", f"target_user_id={user_id}")
     await state.set_state(BalanceChange.amount)
     await state.update_data(action=action, user_id=user_id)
+
     if action == "add":
-        await call.message.edit_text("💸 <b>Введите сумму для пополнения баланса:</b>", parse_mode="HTML")
+        await call.message.answer("💸 <b>Введите сумму для пополнения баланса:</b>", parse_mode="HTML")
     elif action == "fine":
-        await call.message.edit_text("💸 <b>Введите сумму штрафа (будет вычтено):</b>", parse_mode="HTML")
+        await call.message.answer("💸 <b>Введите сумму штрафа (будет вычтено):</b>", parse_mode="HTML")
     elif action == "corr":
-        await call.message.edit_text("💸 <b>Введите сумму корректировки (может быть + или -):</b>", parse_mode="HTML")
+        await call.message.answer("💸 <b>Введите сумму корректировки (может быть + или -):</b>", parse_mode="HTML")
     await call.answer()
 
 @router.message(StateFilter(BalanceChange.amount))
 async def balance_amount_entered(message: Message, state: FSMContext):
     data = await state.get_data()
     if not message.text.lstrip('-').isdigit():
-        await message.edit_text("❗️ <b>Введите корректную сумму (целое число):</b>", parse_mode="HTML")
+        await message.answer("❗️ <b>Введите корректную сумму (целое число):</b>", parse_mode="HTML")
         return
     await state.update_data(amount=int(message.text))
-    await message.edit_text("📝 <b>Введите комментарий к операции (или '-' если не нужен):</b>", parse_mode="HTML")
+    await message.answer("📝 <b>Введите комментарий к операции (или '-' если не нужен):</b>", parse_mode="HTML")
     await state.set_state(BalanceChange.comment)
 
 @router.message(StateFilter(BalanceChange.comment))
@@ -192,7 +184,7 @@ async def balance_comment_entered(message: Message, state: FSMContext):
         result = await session.execute(select(User).where(User.tg_id == user_id))
         user = result.scalar_one_or_none()
         if not user:
-            await message.edit_text("❗️ <b>Пользователь не найден.</b>", parse_mode="HTML")
+            await message.answer("❗️ <b>Пользователь не найден.</b>", parse_mode="HTML")
             await state.clear()
             return
         if data["action"] == "add":
@@ -205,7 +197,8 @@ async def balance_comment_entered(message: Message, state: FSMContext):
             user.balance += amount
             op = "корректировка"
         await session.commit()
-    await message.edit_text(f"✅ <b>Баланс пользователя изменён!</b>\nОперация: <b>{op}</b>\nСумма: <b>{amount}</b>\nКомментарий: {comment}", parse_mode="HTML")
+
+    await message.answer(f"✅ <b>Баланс пользователя изменён!</b>\nОперация: <b>{op}</b>\nСумма: <b>{amount}</b>\nКомментарий: {comment}", parse_mode="HTML")
     try:
         from aiogram import Bot
         bot: Bot = message.bot
@@ -268,10 +261,16 @@ async def reject_withdraw_start(call: CallbackQuery, state: FSMContext):
     hist, user = row
     await state.set_state(RejectWithdrawFSM.comment)
     await state.update_data(hist_id=hist.id, user_id=user_id, amount=amount)
-    await call.message.edit_text(
-        f"❌ <b>Отклонение заявки</b>\nПользователь: <b>{user.fio or user.tg_id}</b>\nСумма: <b>{abs(hist.change)} ₽</b>\n\nВведите причину отказа:",
-        parse_mode="HTML"
-    )
+    try:
+        await call.message.edit_text(
+            f"❌ <b>Отклонение заявки</b>\nПользователь: <b>{user.fio or user.tg_id}</b>\nСумма: <b>{abs(hist.change)} ₽</b>\n\nВведите причину отказа:",
+            parse_mode="HTML"
+        )
+    except Exception:
+        await call.message.answer(
+            f"❌ <b>Отклонение заявки</b>\nПользователь: <b>{user.fio or user.tg_id}</b>\nСумма: <b>{abs(hist.change)} ₽</b>\n\nВведите причину отказа:",
+            parse_mode="HTML"
+        )
     await call.answer()
 
 @router.message(RejectWithdrawFSM.comment)
@@ -564,7 +563,10 @@ async def bulk_continue(call: CallbackQuery, state: FSMContext):
         [InlineKeyboardButton(text="📢 Сделать рассылку", callback_data="bulk_mail")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_menu")]
     ])
-    await call.message.answer(f"Выбрано пользователей: {len(selected)}. Какое действие выполнить?", reply_markup=kb)
+    try:
+        await call.message.edit_text(f"Выбрано пользователей: {len(selected)}. Какое действие выполнить?", reply_markup=kb)
+    except Exception:
+        await call.message.answer(f"Выбрано пользователей: {len(selected)}. Какое действие выполнить?", reply_markup=kb)
     await call.answer()
 
 # 1. Кнопка отмены для рассылки
@@ -594,7 +596,10 @@ async def bulk_mail_text(message: Message, state: FSMContext):
             count += 1
         except Exception:
             pass
-    await message.edit_text(f"Рассылка отправлена <b>{count}</b> пользователям.", parse_mode="HTML")
+    try:
+        await message.edit_text(f"Рассылка отправлена <b>{count}</b> пользователям.", parse_mode="HTML")
+    except Exception:
+        await message.answer(f"Рассылка отправлена <b>{count}</b> пользователям.", parse_mode="HTML")
     await state.clear()
 
 @router.callback_query(F.data == "bulk_block")
@@ -610,7 +615,10 @@ async def bulk_block(call: CallbackQuery, state: FSMContext):
                 user.is_blocked = True
                 session.add(AdminActionLog(admin_id=call.from_user.id, user_id=tg_id, action="bulk_block", comment=None))
         await session.commit()
-    await call.message.edit_text(f"Заблокировано пользователей: {len(selected)}")
+    try:
+        await call.message.edit_text(f"Заблокировано пользователей: {len(selected)}")
+    except Exception:
+        await call.message.answer(f"Заблокировано пользователей: {len(selected)}")
     await call.answer()
 
 @router.callback_query(F.data == "bulk_unblock")
@@ -627,5 +635,8 @@ async def bulk_unblock(call: CallbackQuery, state: FSMContext):
                 user.comment = None
                 session.add(AdminActionLog(admin_id=call.from_user.id, user_id=tg_id, action="bulk_unblock", comment=None))
         await session.commit()
-    await call.message.edit_text(f"Разблокировано пользователей: {len(selected)}")
+    try:
+        await call.message.edit_text(f"Разблокировано пользователей: {len(selected)}")
+    except Exception:
+        await call.message.answer(f"Разблокировано пользователей: {len(selected)}")
     await call.answer() 
